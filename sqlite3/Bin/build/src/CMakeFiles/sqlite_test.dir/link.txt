@@ -1,0 +1,1 @@
+/usr/bin/g++   -DEGL_API_FB -std=gnu++11 -w -g -O3 -rdynamic -DNDEBUG  -DLINUX -O3 -DNDEBUG  -rdynamic CMakeFiles/sqlite_test.dir/main.cpp.o  -o ../../../sqlite_test  -L/home/hongliangc/Dev/test/sqlite3/sdk/lib -Wl,-rpath,/home/hongliangc/Dev/test/sqlite3/sdk/lib -lpthread -lsqlite3 
