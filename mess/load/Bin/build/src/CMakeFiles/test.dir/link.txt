@@ -1,0 +1,1 @@
+/usr/bin/g++   -DEGL_API_FB -std=gnu++11 -w -g -O3 -rdynamic -DNDEBUG  -DLINUX -O3 -DNDEBUG  -rdynamic CMakeFiles/test.dir/main.cpp.o  -o ../../../test  -L/home/hongliangc/Dev/test/load -Wl,-rpath,/home/hongliangc/Dev/test/load ../../../libmodule.so 

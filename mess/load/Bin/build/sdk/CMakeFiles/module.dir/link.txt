@@ -1,0 +1,1 @@
+/usr/bin/gcc -fPIC  -DEGL_API_FB -std=gnu++11  -w -g -O3 -rdynamic -DNDEBUG  -DLINUX -O3 -DNDEBUG  -shared -Wl,-soname,libmodule.so -o ../../../libmodule.so CMakeFiles/module.dir/module.c.o 

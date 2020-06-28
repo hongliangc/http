@@ -1,0 +1,22 @@
+b bubble_sort
+commands
+	silent
+	set var n = 10
+	printf "n:%d",n
+	continue
+end
+
+b 7 if i == n
+commands
+	silent
+	printf "i:%d,n:%d",i,n
+	return
+	continue
+end
+
+b 25 if i == 10
+commands
+	silent
+	jump 28
+	continue
+end
