@@ -1,0 +1,5 @@
+﻿  openssl_client.cpp
+f:\opensource\test\http\openssl\openssl_client\openssl_client.cpp(59): warning C4244: “=”: 从“SOCKET”转换到“int”，可能丢失数据
+f:\opensource\test\http\openssl\openssl_client\openssl_client.cpp(104): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+  openssl_client.vcxproj -> F:\openSource\test\http\openssl\x64\Debug\openssl_client.exe
+  openssl_client.vcxproj -> F:\openSource\test\http\openssl\x64\Debug\openssl_client.pdb (Full PDB)

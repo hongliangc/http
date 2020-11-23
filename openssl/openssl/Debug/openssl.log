@@ -1,0 +1,7 @@
+﻿  stdafx.cpp
+  openssl.cpp
+f:\opensource\test\http\openssl\openssl\openssl.cpp(35): warning C4101: “lisnum”: 未引用的局部变量
+f:\opensource\test\http\openssl\openssl\openssl.cpp(35): warning C4101: “myport”: 未引用的局部变量
+  正在生成代码...
+  openssl.vcxproj -> F:\openSource\test\http\openssl\Debug\openssl.exe
+  openssl.vcxproj -> F:\openSource\test\http\openssl\Debug\openssl.pdb (Full PDB)
