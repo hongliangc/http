@@ -36,6 +36,26 @@ typedef unsigned __int64    DWORDLONG;
 typedef unsigned __int64    ULONG64;
 typedef unsigned __int64    DWORD64;
 typedef unsigned __int64    UINT64;
+typedef int					BOOL;
+
+
+//调用约定
+#define STDCALL		__stdcall
+#define CDECCALL	__cdecl
+
+#if defined(_WIN32) || defined(_WIN64)
+#define OS_WIN
+#else
+#define OS_LINUX
+#endif
+
+#if defined(OS_WIN)
+#define _EXPORT_ __declspec(dllexport)
+#define _IMPORT_ __declspec(dllimport)
+#elif defined(OS_LINUX)
+#define _EXPORT_
+#define _IMPORT_
+#endif
 
 /** @brief 返回值(成功)																	*/
 #define RET_SUCCESS				(0)
@@ -100,3 +120,16 @@ public:
 //日志输出
 #define LOG CLog::Print
 #define LOGERR(x) CLog::ePrint
+
+
+
+//动态库导出宏定义
+#ifdef _FEATURE
+#define FEATURE_API _EXPORT_
+#else
+#define FEATURE_API _IMPORT_
+#endif
+
+//定义出参还是入参宏标识
+#define _In
+#define _Out
