@@ -1,6 +1,9 @@
 #pragma once
 #include "ISerialize.h"
 #include <sstream>
+#include <iostream>
+#include <iomanip>
+#include <limits>
 using namespace std;
 namespace Serialize_
 {
@@ -39,7 +42,7 @@ namespace Serialize_
 		};
 	public:
 		explicit TBinaryArchive(eSerializeMode mode, std::iostream &stream, const Options & options = Options::Default()) :
-			BaseArchive(this),m_mode(mode), m_data(stream), m_convertEndian(false)
+			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(false)
 		{
 			if (mode == eSerializeWrite)
 			{
@@ -53,19 +56,46 @@ namespace Serialize_
 				m_convertEndian = endian ^ options.is_little_endian();
 			}
 		}
+		explicit TBinaryArchive(eSerializeMode mode, std::iostream &stream, bool convert):
+			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(convert){
+		}
 	public:
+		bool IsRead()
+		{
+			return (m_mode == eSerializeRead);
+		}
+		bool IsWrite()
+		{
+			return (m_mode == eSerializeWrite);
+		}
+
 		template<std::streamsize DataSize>
 		void Serialize(void *data, std::streamsize size)
 		{
-			if (m_mode == eSerializeWrite)
+			if (IsWrite())
 			{
 				saveBinary<DataSize>(data, size);
 			} 
-			else if(m_mode == eSerializeRead)
+			else if(IsRead())
 			{
 				loadBinary<DataSize>(data, size);
 			}
 		}
+
+		const string GetSerializeString()
+		{
+			try
+			{
+				return (dynamic_cast<std::stringstream&>(m_data)).str();
+			}
+			catch (const std::exception &e)
+			{
+				std::cout << e.what() << endl;
+				throw e;
+				return "";
+			}
+		}
+
 		template<std::streamsize DataSize>
 		void saveBinary(const void *data, std::streamsize size)
 		{
@@ -136,7 +166,7 @@ namespace Serialize_
 	{
 		//typedef typename std::remove_pointer<typename std::decay<T>::type>::type TT;
 		using TT = typename std::remove_pointer<typename std::remove_all_extents<typename std::remove_reference<T>::type>::type>::type;
-		printf("SERIALIZE_FUNCTION_NAME TT size:%d\n", sizeof(TT));
+		printf("SERIALIZE_FUNCTION_NAME TT size:%ld\n", sizeof(TT));
 		static_assert(!std::is_floating_point<TT>::value ||
 			(std::is_floating_point<TT>::value && std::numeric_limits<TT>::is_iec559),
 			"BinaryData only supports IEEE 754 standardized floating point");

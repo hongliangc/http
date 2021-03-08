@@ -65,6 +65,15 @@ namespace Serialize_
 			self->Process(std::forward<Types>(args)...);
 			return *self;
 		}
+
+		template<class T>
+		inline ArchiveType& operator& (T &&t)
+		{
+			self->Process(std::forward<T>(t));
+			return *self;
+		}
+
+
 	private:
 		template <class T>
 		inline void Process(T &&head)
@@ -114,6 +123,15 @@ namespace Serialize_
 			static_assert(std::is_empty<T>::value,"not support empty class!");
 			return *self;
 		}
+// 		//! not support class specialization
+// 		template <class T> inline
+// 			ArchiveType & ProcessImp(T const &t)
+// 		{
+// 			static_assert(std::is_empty<T>::value, "not support empty class!");
+// 			return *self;
+// 		}
+
+
 	private:
 		ArchiveType * const self;
 	};

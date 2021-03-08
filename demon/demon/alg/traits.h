@@ -66,7 +66,7 @@ namespace traits
 	struct has_##test_name##_impl 																		\
 	{																									\
 		template<class TT, class AA>																	\
-		static auto test(int)->decltype(fun( std::declval<AA&>(),std::declval<TT&>()), yes());						\
+		static auto test(int)->decltype(fun( std::declval<AA&>(),std::declval<TT&>()), yes());			\
 		template<class, class>																			\
 		static no test(...);																			\
 		static bool const value = std::is_same<decltype(test<T, A>(0)), yes>::value;					\
@@ -80,18 +80,18 @@ namespace traits
 
 
 	//########################################################################################
-#define MAKE_HAS_MEMBER_SERIALIZE_TEST(test_name)																		\
+#define MAKE_HAS_MEMBER_SERIALIZE_TEST(test_name)																		    \
 																															\
       template <class T, class A>                                                                                           \
-      struct has_member_##test_name##_impl																							\
+      struct has_member_##test_name##_impl																					\
       {                                                                                                                     \
         template <class TT, class AA>                                                                                       \
-		static auto test(int) -> decltype(std::declval<TT&>().SERIALIZE_FUNCTION_NAME(std::declval<AA&>()), yes());										\
+		static auto test(int) -> decltype(std::declval<TT&>().SERIALIZE_FUNCTION_NAME(std::declval<AA&>()), yes());			\
 		template <class, class> static no test(...);                                                                        \
         static const bool value = std::is_same<decltype(test<T, A>(0)), yes>::value;										\
 																															\
 	    template<class TT,class AA>																							\
-		static auto test1(int) -> decltype(access::member_##test_name( std::declval<AA&>(), std::declval<TT&>()), yes());				\
+		static auto test1(int) -> decltype(access::member_##test_name( std::declval<AA&>(), std::declval<TT&>()), yes());	\
 		template<class, class> static no test1(...);																		\
 		static const bool value1 = std::is_same<decltype(test1<T, A>(0)), yes>::value;										\
       };																													\

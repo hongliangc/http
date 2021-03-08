@@ -5,6 +5,8 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <functional>
+#include <sys/stat.h>
 using namespace std;
 
 #define CHECK_STATE(x)	\
@@ -88,19 +90,31 @@ public:
 		CHECK_STATE(m_state);
 		std::unique_lock<Mutex> lock(m_mutex);
 		unsigned int middle = 0, low = 0, high = m_used -1;
-		while (low < high)
+		int count = 0;
+		while (low <= high)
 		{
+			count++;
 			middle = (low + high) / 2;
 			const T &data = m_frameQ[(m_head + middle) % m_size];
 			int ret = _Pred(data);
 			if (ret == 0){
 				return middle;
 			}
-			else if (ret > 0){
-				high = middle;
+			else {
+				if (low == high) {
+					break;
+				}
+
+				if (ret > 0) {
+					high = middle;
+				}
+				else {
+					low = middle + 1;
+				}
 			}
-			else{
-				low = middle + 1;
+
+			if (count > 1000) {
+				break;
 			}
 		}
 		return -1;
@@ -121,7 +135,7 @@ public:
 		}
 		return -1;
 	}
-public:
+private:
 	/* std::mutex is not reentrant, the exception is thrown if we are trying to 
 	lock mutex while the mutex is already owned by calling thread*/
 	typedef std::recursive_mutex Mutex;
@@ -339,7 +353,11 @@ bool TQueue<T>::SaveFile(string path)
 		}
 		bool ret = true;
 		FILE * fd = NULL;
-		fopen_s(&fd, path.c_str(), "wb");
+#ifdef WIN32
+	fopen_s(&fd, path.c_str(), "wb");
+#else
+	fd = fopen(path.c_str(), "wb");
+#endif
 		if (NULL != fd)
 		{
 			int total_len = 0;
@@ -349,7 +367,7 @@ bool TQueue<T>::SaveFile(string path)
 			int try_count = 0;
 			for (int i = 0; i < m_used; i++)
 			{
-				const T data = m_frameQ[(m_head + i) % m_size];
+			const T &data = m_frameQ[(m_head + i) % m_size];
 				while (offset != data_len)
 				{
 					len = fwrite(&data + offset, 1, data_len - offset, fd);
@@ -380,7 +398,6 @@ bool TQueue<T>::SaveFile(string path)
 		else
 		{
 			printf("SaveFile fopen err:%d\n", errno);
-			Sleep(0);
 			ret = false;
 		}
 		return ret;
@@ -408,9 +425,14 @@ bool TQueue<T>::LoadFile(string path)
 		printf("LoadFile file is not exist!\n");
 		return false;
 	}
-	_off_t file_size = st.st_size;
 	FILE * fd = NULL;
+#ifdef WIN32
+	_off_t file_size = st.st_size;
 	fopen_s(&fd, path.c_str(), "rb+");
+#else
+	off_t file_size = st.st_size;
+	fd = fopen(path.c_str(), "rb+");
+#endif
 	if (NULL != fd)
 	{
 		int total_len = 0;
@@ -445,7 +467,9 @@ bool TQueue<T>::LoadFile(string path)
 				if (feof(fd) && offset != data_len)
 				{
 					//the function is return when the end indicator of file is set and offset is not equal data_len
-					printf("LoadFile file is end!\n");
+					Reset();
+					fclose(fd);
+					printf("LoadFile file is end, the length is not right!\n");
 					return ret;
 				}
 			}
@@ -458,6 +482,9 @@ bool TQueue<T>::LoadFile(string path)
 	}
 	else
 	{
+		if(NULL != fd){
+			fclose(fd);
+		}
 		ret = false;
 	}
 	return ret;

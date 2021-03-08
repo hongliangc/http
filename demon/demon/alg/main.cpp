@@ -7,11 +7,12 @@
 #include <vector>
 #include "TQueue.h"
 #include <algorithm>
-#include <windows.h>
 #include <errno.h>
 #include <time.h>
 #include <assert.h>
 #include "test.h"
+#include "protocol.h"
+using namespace Packets;
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
@@ -19,6 +20,30 @@
 using namespace Serialize_;
 
 using namespace std;
+
+#ifdef WIN32
+#include <windows.h>
+#endif
+
+
+
+TEST_CASE("Condition_var_test")
+{
+	condtion_var_test();
+}
+
+
+static string ToHex1(const string& s, bool upper_case = true)
+{
+	ostringstream ret;
+	ret << std::hex << std::setfill('0');
+	for (unsigned char c : s)
+		ret << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) << int(c);
+
+	cout << ret.str() << endl;
+	return ret.str();
+}
+
 
 class CCircleBuf
 {
@@ -109,7 +134,7 @@ protected:
 		//获取使用空间大小    
 		unsigned short used_size = GetUsedlen();
 		len = min(len, used_size);
-		unsigned short lelf = min(len, m_size - m_out &(m_size - 1));
+		unsigned short lelf = min(len, (unsigned short)(m_size - (m_out &(m_size - 1))));
 		memcpy(buf, m_buf + (m_out & (m_size - 1)), lelf);
 		memcpy(buf + lelf, m_buf, len - lelf);
 		m_out += len;
@@ -119,8 +144,8 @@ protected:
 	{
 		//获取使用空间大小    
 		unsigned short used_size = GetUsedlen();
-		len = min(len, m_size - used_size);
-		unsigned short lelf = min(len, m_size - (m_in &(m_size - 1)));
+		len = min(len, (unsigned short)(m_size - used_size));
+		unsigned short lelf = min(len, (unsigned short)(m_size - (m_in &(m_size - 1))));
 		memcpy(m_buf + (m_in &(m_size - 1)), buf, lelf);
 		memcpy(m_buf, buf + lelf, len - lelf);
 		m_in += len;
@@ -139,8 +164,9 @@ private:
 	std::mutex			m_mutex;
 };
 
+#ifdef WIN32
 CCircleBuf gCircleBuf;
-DWORD WINAPI ThreadRead(LPVOID lparam)
+void ThreadRead()
 {
 	char temp[1024] = { '\0' };
 	char buf[128] = { '\0' };
@@ -155,11 +181,10 @@ DWORD WINAPI ThreadRead(LPVOID lparam)
 		}
 		//Sleep(1 * 1000);
 	}
-	return 0;
 }
 
 
-DWORD WINAPI ThreadWrite(LPVOID lparam)
+void ThreadWrite()
 {
 	srand(time(NULL));
 	while (1)
@@ -174,8 +199,8 @@ DWORD WINAPI ThreadWrite(LPVOID lparam)
 		}
 		//Sleep(1 * 1000);
 	}
-	return 0;
 }
+#endif // WIN32
 
 
 
@@ -198,7 +223,7 @@ void CheckVariable1(T &t)
 	using TT2 = typename std::remove_all_extents<typename std::remove_reference<T>::type>::type;
 	using TT3 = typename std::remove_pointer<typename std::remove_reference<typename std::remove_all_extents<T>::type>::type>::type;
 	//using TT4 = decltype(T);
-	printf("CheckVariable %d,%d,%d,%d\n", sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3));
+	printf("CheckVariable %ld,%ld,%ld,%ld\n", sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3));
 }
 
 template<class T>
@@ -207,16 +232,17 @@ void CheckVariable1(BinaryData<T> &t)
 	using TT = typename std::remove_pointer<T>::type;
 	using TT1 = typename std::remove_pointer<typename std::remove_reference<T>::type>::type;
 	using TT2 = typename std::remove_all_extents<typename std::remove_reference<T>::type>::type;
-	using TT3 = typename std::remove_pointer<typename std::remove_reference<typename std::remove_all_extents<T>::type>::type>::type;
-	if (std::is_same<std::decay<T>::type, int*>::value)
+	//先去引用，然后去掉数组，最后去掉指针
+	using TT3 = typename std::remove_pointer<typename std::remove_all_extents<typename std::remove_reference<T>::type>::type>::type;
+	if (std::is_same<typename std::decay<T>::type, int*>::value)
 	{
 		printf("T is int*\n");
 	}
-	if (std::is_same<std::decay<T>::type, char*>::value)
+	if (std::is_same<typename std::decay<T>::type, char*>::value)
 	{
 		printf("T is char*\n");
 	}
-	using TT4 = std::remove_pointer<typename std::decay<T>::type>::type;
+	using TT4 = typename std::remove_pointer<typename std::decay<T>::type>::type;
 	if (std::is_same<TT4,int>::value)
 	{
 		printf("T is int\n");
@@ -225,7 +251,7 @@ void CheckVariable1(BinaryData<T> &t)
 	{
 		printf("T is char\n");
 	}
-	printf("BinaryData CheckVariable %d,%d,%d,%d,%d\n", sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3), sizeof(TT4));
+	printf("BinaryData CheckVariable %ld,%ld,%ld,%ld,%ld\n", sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3), sizeof(TT4));
 }
 
 template<class T>
@@ -237,6 +263,7 @@ void CheckVariable(T &&t)
 TEST_CASE("TYPE_CHECK")
 {
 	int arr[10] = { 1,2,3,4,5,6,7,8,9,10 };
+	int arr_[2][2] = { {1,2},{3,4}};
 	CheckVariable(arr);
 	char *buf = new char[20];
 	CheckVariable(buf);
@@ -244,6 +271,8 @@ TEST_CASE("TYPE_CHECK")
 	CheckVariable(Bd);
 	auto Bd1 = Binary_data(arr, 40);
 	CheckVariable(Bd1);
+	auto Bd2 = Binary_data(arr_, 16);
+	CheckVariable(Bd2);
 	printf("TYPE_CHECK finish!\n");
 }
 
@@ -372,9 +401,10 @@ TEST_CASE("TRAITS")
 	//是否支持数组序列化和pod类型序列化
 	bool ret1 = traits::has_serialize<T, TBinaryArchive>::value;
 	bool ret2 = traits::has_serialize_array<T, TBinaryArchive>::value;
-	//ProcessImp(a, wArchive);
+	//类型过滤
+	ProcessImp(a, wArchive);
 	int arr[2] = { 1,2 };
-	//ProcessImp(arr, wArchive);
+	ProcessImp(arr, wArchive);
 	using T1 = decltype(arr);
 	bool ret9 = is_array<T1>::value;
 	bool ret7 = traits::has_serialize<T1, TBinaryArchive>::value;
@@ -401,18 +431,92 @@ TEST_CASE("TRAITS")
 
 }
 
+#if 0
+template<class T/*, enable_if_t<is_arithmetic<T>::value>*/>
+int GetLength(T &&t)
+{
+	printf("%ld\n", sizeof(t));
+	return sizeof(t);
+}
+template<class T, class ...Other>
+int GetLength(T&& head, Other &&... tail)
+{
+	return GetLength(head) + GetLength(tail...);
+}
+#else
+template<class T>
+uint64_t GetLength(T &&t) {
+	using TT = typename std::remove_pointer<typename std::remove_all_extents<typename std::remove_reference<T>::type>::type>::type;
+	static_assert(!std::is_floating_point<TT>::value ||
+		(std::is_floating_point<TT>::value && std::numeric_limits<TT>::is_iec559),
+		"could not calculate the size of T");
+	printf("element size:%ld,total size:%ld\n", sizeof(TT), sizeof(t));
+	return sizeof(t);
+}
+template<class T>
+uint64_t GetLength(BinaryData<T> &bd) {
+	return bd.m_size;
+}
+template<class T, class ...Args>
+uint64_t GetLength(T &&head, Args &&... tail) {
+	return GetLength(std::forward<T>(head)) + GetLength(std::forward<Args>(tail)...);
+}
+
+#endif
+
+template<class T>
+void add(T &t){
+	t = 15;
+}
+template<class T>
+void copy(T &&t){
+	add(std::forward<T&>(t));
+}
+
+class A
+{
+public:
+	A() { val = 0; cout << "A construct called!\n" << endl; }
+	~A() { cout << "A destruct called!\n" << endl; }
+	void operator =(int a)	{ val = a;}
+private:
+	int val;
+};
+
+void assignment(uint8_t & t){
+	t += 10;
+}
 
 TEST_CASE("Serialize")
 {
-	std::string;
+	uint16_t len_1 = 0xffff;
+	uint8_t len_2 = 0xff;
+	A objectA;
+	copy((uint8_t)len_1);
+	copy(*(uint8_t*)&len_1);
+	copy(len_2);
+	copy(objectA);
+	assignment(*(uint8_t*)&len_1);
+	assignment(len_2);
 	char a = 0x12;
 	short b = 0x1234;
 	int c = 0x12344321;
 	long long d = 0x1234567812345678;
 	int arr[10] = { 1,2,3,4,5,6,7,8,9,10 };
+	int arr1[2][2] = { {5,6},{8,9} };
 	std::stringstream stream;
-	TBinaryArchive wArchive(eSerializeWrite, stream,Serialize_::TBinaryArchive::Options::BigEndian());
-	wArchive(a, b, c, d,arr);
+	TBinaryArchive wArchive(eSerializeWrite, stream,Serialize_::TBinaryArchive::Options::LittleEndian());
+
+	std::stringstream stream1;
+	TBinaryArchive wArchive1(eSerializeWrite, stream1, false);
+	Hello hello;
+	hello.a = a;
+	hello.b = b;
+	hello.c = c;
+	hello.d = d;
+	wArchive1(hello);
+
+	wArchive(arr1, a, b, c, d,arr );
 
 	StrucTest struTest;
 	struTest.a = 0x123456;
@@ -429,33 +533,101 @@ TEST_CASE("Serialize")
 	auto BData = Binary_data(pBuf, len); //if T is lvalue that will be deduced to T&
 	//auto BData = Binary_data_(pBuf, len);
 	wArchive(BData);
-	printf("len:%d,str:%s\n", stream.str().length(), stream.str().c_str());
+	printf("stream  len:%ld,str:%s\n", stream.str().length(), ToHex1(stream.str()));
+	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()));
 
-	TBinaryArchive rArchive(eSerializeRead, stream, Serialize_::TBinaryArchive::Options::BigEndian());
+	TBinaryArchive rArchive(eSerializeRead, stream, Serialize_::TBinaryArchive::Options::LittleEndian());
+
+	TBinaryArchive rArchive1(eSerializeRead, stream1, false);
+	Hello hello1;
+	rArchive1(hello1);
 	char aa = 0;
 	short bb = 0;
 	int cc = 0;
 	long long dd = 0;
 	int arr_[10] = { 0 };
-	rArchive(aa, bb, cc, dd, arr_);
+	int arr1_[2][2] = {0};
+	rArchive(arr1_, aa, bb, cc, dd, arr_);
 
 	StrucTest struTest_;
 	struTest_.a = 0;
 	struTest_.b = 0;
 	rArchive(struTest_);
 
-	char *_pBuf = new char[len];
+	char *pBuf_ = new char[len];
 	for (int i = 0; i < len; i++)
 	{
-		_pBuf[i] = 0;
+		pBuf_[i] = 0;
 	}
 	//auto _BData = BinaryData<char*>(std::move(_pBuf), len);
 	//auto _BData = BinaryData<char*>(std::forward<char*>(_pBuf), len);
-	auto _BData = Binary_data(_pBuf, len);
-	rArchive(_BData);
-
-
+	//auto BData_ = Binary_data(pBuf_, len);
+	rArchive(Binary_data(pBuf_, len));
+	auto length = GetLength(aa, bb, cc, dd, arr, arr1_);
+	auto length_1 = GetLength(aa, bb, cc, dd, arr, arr1_, BData, struTest_);
+	CHECK_EQ(a, aa);
+	CHECK_EQ(b, bb);
+	CHECK_EQ(c, cc);
+	CHECK_EQ(d, dd);
+	//CHECK_EQ(arr, arr_);
+	//CHECK_EQ(arr1, arr1_);
+	//CHECK_EQ(hello, hello1);
+	//CHECK_EQ(pBuf, pBuf_);
 	printf("Serialize OK\n");
+}
+
+TEST_CASE("Serialize1")
+{
+	char a = 0x12;
+	short b = 0x1234;
+	int c = 0x12344321;
+	long long d = 0x1234567812345678;
+	int arr[10] = { 1,2,3,4,5,6,7,8,9,10 };
+	int arr1[2][2] = { { 5,6 },{ 8,9 } };
+
+	std::stringstream stream1;
+	TBinaryArchive wArchive1(eSerializeWrite, stream1, false);
+	Hello hello;
+	hello.a = a;
+	hello.b = b;
+	hello.c = c;
+	hello.d = d;
+	wArchive1(hello);
+	Reissue reissue;
+	reissue.m_iFlag = 1;
+	reissue.m_iStatus = 0;
+	reissue.m_iLat = 0x12345678;
+	reissue.m_iLong = 0x98765432;
+	char i = 0;
+	for (auto &c: reissue.m_oDateTime)
+	{
+		c = i++;
+	}
+	canMessage_t e;
+	e.id = 0x123;
+	memcpy(e.byte_arr, "\xF3\x40\xBA\x09\x55\x00\x00\xBD", 8);
+	reissue.m_vCanDate.push_back(e);
+	e.id = 0x456;
+	memcpy(e.byte_arr, "\xb0\x40\xBA\x09\x55\x00\x00\xB1", 8);
+	reissue.m_vCanDate.push_back(e);
+	wArchive1(reissue);
+
+	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()));
+
+	TBinaryArchive rArchive1(eSerializeRead, stream1, false);
+	Hello hello1;
+	rArchive1(hello1);
+	Reissue reissue1;
+	rArchive1(reissue1);
+
+	printf("Serialize1 OK\n");
+}
+
+TEST_CASE("FORWARD")
+{
+	test_template_override();
+	test_forward();
+	test_template_construct();
 }
 
 
@@ -474,9 +646,8 @@ struct HasBarOfTypeInt : std::false_type {
 };
 
 template<typename T>
-struct HasBarOfTypeInt<T, TypeSinkT<decltype(std::declval<T&>().*(&T::bar))>> :
-	std::is_same<typename std::decay<decltype(std::declval<T&>().*(&T::bar))>::type, int> {
-	static void display(){	printf("HasBarOfTypeInt value:%d\n",value);	}
+struct HasBarOfTypeInt<T, TypeSinkT<decltype(std::declval<T&>().*(&T::bar))>> :	std::is_same<typename std::decay<decltype(std::declval<T&>().*(&T::bar))>::type, int> {
+	static void display(){	printf("HasBarOfTypeInt value:%d\n", std::is_same<typename std::decay<decltype(std::declval<T&>().*(&T::bar))>::type, int>::value);	}
 };
 
 struct S {	int bar;};
@@ -507,6 +678,7 @@ TEST_CASE("SFINAE_CHECK")
 
 TEST_CASE("future")
 {
+
 	test_future();
 }
 
@@ -515,16 +687,7 @@ std::string
 type_name()
 {
 	typedef typename std::remove_reference<T>::type TR;
-	std::unique_ptr<char, void(*)(void*)> own
-	(
-#ifndef _MSC_VER
-		abi::__cxa_demangle(typeid(TR).name(), nullptr,
-			nullptr, nullptr),
-#else
-		nullptr,
-#endif
-		std::free
-	);
+	std::unique_ptr<char, void(*)(void*)> own(nullptr,std::free);
 	std::string r = own != nullptr ? own.get() : typeid(TR).name();
 	if (std::is_const<TR>::value)
 		r += " const";
@@ -609,6 +772,47 @@ TEST_CASE("Reference_collapsing")
 	std::cout << type_name<decltype(std::declval<int&&>())>() << '\n';
 	printf("Reference_collapsing OK\n");
 }
+/*//Some C standard library functions are not guaranteed to be reentrant with respect to threads.
+Functions such as strtok() and asctime() return a pointer to the result stored in function-allocated memory on a per-process basis.
+Other functions such as rand() store state information in function-allocated memory on a per-process basis.
+Multiple threads invoking the same function can cause concurrency problems, which often result in abnormal behavior and can cause more serious vulnerabilities,
+such as abnormal termination, denial-of-service attack, and data integrity violations
+*/
+TEST_CASE("DATA_RACES")
+{
+	{
+		cout << "************ deferred use of a variable returned by localtime can cause abnormal behavior"<< endl;
+		time_t  t1 = time(nullptr);
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		time_t t2 = time(nullptr);
+		struct tm *t1_tm = localtime(&t1);
+		cout << "before t1 tm:" << asctime(t1_tm) << endl;
+
+		//因为localtime返回的结果是存储在其申请的内存上的，多次调用localtime会导致上次存储的数据被覆盖
+		struct tm* t2_tm = localtime(&t2);
+		cout << "after t1 tm:" << asctime(t1_tm) << endl;
+		cout << "after t2 tm:" << asctime(t2_tm) << endl;
+	}
+
+	{
+		/*//Windows下，localtime此函数是线程安全的,这个函数都会为每一个线程分配一个单独的tm结构体。
+			POSIX下 就不是线程安全的。这个函数内部使用了一个静态tm结构体，每个访问它的函数都会修改这个值*/
+		cout << "************ Multiple threads invoking the same function can cause concurrency problems" << endl;
+		time_t  t1 = time(nullptr);
+		struct tm *t1_tm = localtime(&t1);
+		cout << "before t1 tm:" << asctime(t1_tm) << endl;
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		std::thread thread_(std::bind([&t1_tm]() {
+			time_t t2 = time(nullptr);
+			struct tm* t2_tm = localtime(&t2);
+			cout << "after t1 tm:" << asctime(t1_tm) << endl;
+			cout << "after t2 tm:" << asctime(t2_tm) << endl;
+		}));
+		thread_.join();
+		cout << "after2 t1 tm:" << asctime(t1_tm) << endl;
+	}
+}
+
 
 #if 0
 TEST_CASE("TEST 1")
@@ -621,12 +825,10 @@ TEST_CASE("TEST 1")
 	unsigned short t3 = 11;
 	unsigned short t = min(t3, (t2 - t1));
 	unsigned short offset = t2 - t1;
-	HANDLE hTread1 = ::CreateThread(NULL, 0, ThreadRead, NULL, 0, NULL);
-	HANDLE hTread2 = ::CreateThread(NULL, 0, ThreadWrite, NULL, 0, NULL);
-	WaitForSingleObject(hTread1, INFINITE);
-	WaitForSingleObject(hTread2, INFINITE);
-	CloseHandle(hTread1);
-	CloseHandle(hTread2);
+	std::thread thread1(ThreadRead);
+	std::thread thread2(ThreadWrite);
+	thread1.join();
+	thread2.join();
 }
 
 //3*24*60*60/10
