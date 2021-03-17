@@ -152,9 +152,11 @@
   <ItemGroup>
     <ClInclude Include="IPackets.h" />
     <ClInclude Include="ISerialize.h" />
+    <ClInclude Include="poly_impl.h" />
     <ClInclude Include="protocol.h" />
     <ClInclude Include="TBinarySerialize.h" />
     <ClInclude Include="test.h" />
+    <ClInclude Include="testQueue.h" />
     <ClInclude Include="TQueue.h" />
     <ClInclude Include="traits.h" />
   </ItemGroup>

@@ -40,11 +40,16 @@ const uint16_t crctab16[] =
 };
 
 
+/** @brief muc消息包头固定字节															*/
 #define		HEADER_BYTE		0xE1
+/** @brief muc消息包尾固定字节															*/
 #define		TAIL_BYTE		0xFE
+/** @brief muc消息基本长度																*/
 #define		BASIC_LENGTH	6
+/** @brief muc消息基本长度扩展															*/
+#define		BASIC_LENGTH2	7
 
-enum class ePacketTypeId:uint8_t
+enum class ePacketTypeId :uint8_t
 {
 	//未知事件类型
 	eBegin,
@@ -62,20 +67,20 @@ uint32_t get_length(T &&t) {
 	return sizeof(t);
 }
 template<class T>
-uint32_t get_length(BinaryData<T> &&bd){
+uint32_t get_length(BinaryData<T> &&bd) {
 	return bd.m_size;
 }
-template<class T,class ...Args>
-uint32_t get_length(T &&head, Args &&... tail){
+template<class T, class ...Args>
+uint32_t get_length(T &&head, Args &&... tail) {
 	return get_length(std::forward<T>(head)) + get_length(std::forward<Args>(tail)...);
 }
 
 
-static string ToHex(const string& s, bool upper_case  = true )
+static string ToHex(const string& s, bool upper_case = true)
 {
 	ostringstream ret;
 	ret << std::hex << std::setfill('0');
-	for( unsigned char c: s)
+	for (unsigned char c : s)
 		ret << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) << int(c);
 
 	cout << ret.str() << endl;
@@ -87,15 +92,16 @@ static string ToHex(const string& s, bool upper_case  = true )
 class base
 {
 public:
-	base(ePacketTypeId id = ePacketTypeId::eBegin):m_typeid(id), m_prefix(HEADER_BYTE),m_suffix(TAIL_BYTE)
+	base(ePacketTypeId id = ePacketTypeId::eBegin) :m_typeid(id), m_prefix(HEADER_BYTE), m_suffix(TAIL_BYTE)
 	{
 		m_length = 0;
-		m_bvalid = true;
+		m_bvalid = false;
 		m_highByteCrc = 0;
 		m_lowByteCrc = 0;
 	}
-	virtual ~base(){}
+	virtual ~base() {}
 public:
+	virtual ePacketTypeId GetDataTypeId() { return m_typeid; }
 	virtual uint32_t GetLength() { return BASIC_LENGTH; }
 	/*//!如果m_length的类型不同可以重载该函数 */
 	template<class Archive>
@@ -103,23 +109,26 @@ public:
 	{
 		if (ar.IsWrite())
 		{
-			m_length = GetLength();
+			m_length = (uint16_t)GetLength();
 		}
+		ar.MarkTag();
 		/* //错误转换: ar(m_prefix, (uint8_t)m_typeid, (uint8_t)m_length);
 		直接使用(uint8_t)m_length转换的时候会产生一个临时变量，传入的参数的地址会被修改，造成返回值获取不到，
-		正确的转换方式为*(uint8_t*)&m_length	
+		正确的转换方式为*(uint8_t*)&m_length
 		*/
 		ar(m_prefix, (uint8_t)m_typeid, *(uint8_t*)&m_length);
 		return true;
 	}
 
-	//template<class Archive>
-	//void serialize(Archive &ar) { return true; }
+
+	//template<class Archive> void serialize(Archive &ar) { }
 
 	template<class Archive>
 	bool Epilogue(Archive &ar)
 	{
-		const std::string data = ar.GetSerializeString();
+		const std::string data1 = ar.GetSerializeString();
+		ToHex(data1);
+		const std::string data = ar.GetMarkString();
 		ToHex(data);
 		if (data.length() <= 3)
 		{
@@ -130,10 +139,11 @@ public:
 		{
 			GetCRC(data);
 			ar(m_highByteCrc, m_lowByteCrc, m_suffix);
+			m_bvalid = true;
 		}
 		else if (ar.IsRead())
 		{
-			GetCRC(data.substr(0, data.length() - 3));
+			GetCRC(data);
 			uint8_t lowcrc, highcrc = 0;
 			ar(highcrc, lowcrc, m_suffix);
 			return CheckCRC(lowcrc, highcrc);
@@ -141,7 +151,8 @@ public:
 		}
 		return true;
 	}
-
+	//序列化状态
+	virtual bool SerialzeState() { return m_bvalid; }
 private:
 	bool CheckCRC(uint8_t lowcrc, uint8_t highcrc)
 	{
@@ -151,16 +162,17 @@ private:
 			m_bvalid = false;
 			return false;
 		}
+		m_bvalid = true;
 		return true;
 	}
 
 	bool GetCRC(const string data)
 	{
 		uint16_t nCRCValue = 0xffff; // 初始化
-		if (data.length() == 0){
+		if (data.length() == 0) {
 			return false;
 		}
-		for(const auto &itr: data){
+		for (const auto &itr : data) {
 			nCRCValue = (nCRCValue >> 8) ^ crctab16[(nCRCValue ^ itr) & 0xff];
 		}
 
@@ -169,15 +181,16 @@ private:
 		m_highByteCrc = (uint8_t)(nCRCValue >> 8);
 		m_lowByteCrc = (uint8_t)(nCRCValue & 0xff);
 
-		if (m_highByteCrc == HEADER_BYTE || m_highByteCrc == TAIL_BYTE){
+		if (m_highByteCrc == HEADER_BYTE || m_highByteCrc == TAIL_BYTE) {
 			m_highByteCrc = 0;
 		}
 
-		if (m_lowByteCrc == HEADER_BYTE || m_lowByteCrc == TAIL_BYTE){
+		if (m_lowByteCrc == HEADER_BYTE || m_lowByteCrc == TAIL_BYTE) {
 			m_lowByteCrc = 0;
 		}
 		return true;
 	}
+
 public:
 	ePacketTypeId m_typeid;
 	//uint8_t		m_version;
@@ -196,11 +209,7 @@ class name :public base														\
 public:																		\
 	explicit name();														\
 	~name();																\
-	ePacketTypeId GetDataTypeId();											\
-	uint32_t GetLength();													\
-public:																		
-	/*template<class Archive>												\
-	void serialize(Archive &ar);											\*/
+	uint32_t GetLength();													
 #endif
 
 #ifndef PACKET_DECLARATION_END
@@ -211,13 +220,14 @@ public:
 
 #ifndef PACKET_IMPEMENTION_BEGIN
 #define PACKET_IMPEMENTION_BEGIN(name, id)									\
-	name::name():base(id){}														\
-	name::~name(){}																\
-	ePacketTypeId name::GetDataTypeId() { return m_typeid;}
+	name::name():base(id){}													\
+	name::~name(){}															
 #endif
 
 #ifndef PACKET_IMPEMENTION_END
-#define PACKET_IMPEMENTION_END
+#define PACKET_IMPEMENTION_END(name)	    \
+REGISTER_POLYMORPHIC_RELATION(base, name)	\
+REGISTER_TYPE(name)	
 #endif
 
 

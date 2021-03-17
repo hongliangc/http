@@ -3,6 +3,7 @@
 #include <utility>
 #include <stdexcept>
 #include "traits.h"
+#include "poly_impl.h"
 
 typedef enum eSerializeMode
 {
@@ -52,6 +53,13 @@ namespace Serialize_
 		explicit Exception(const char * what_) : std::runtime_error(what_) {}
 	};
 
+#define UNREGISTERED_POLYMORPHIC_EXCEPTION(Name)                                                                                   \
+      throw Exception("an unregistered polymorphic type (" + Name + ").\n"																	\
+                       "Make sure your type is registered with CEREAL_REGISTER_TYPE and that the archive "                                   \
+                       "you are using was included (and registered with CEREAL_REGISTER_ARCHIVE) prior to calling CEREAL_REGISTER_TYPE.\n"   \
+                       "If your type is already registered and you still see this error, you may need to use CEREAL_REGISTER_DYNAMIC_INIT.");
+
+
 	template<class ArchiveType>
 	class BaseArchive
 	{
@@ -95,7 +103,7 @@ namespace Serialize_
 		template <class T, PROCESS_IF(serialize)>
 		inline ArchiveType& ProcessImp(T const &t)
 		{
-			bool ret = traits::has_serialize<T, ArchiveType>::value;
+			//bool ret = traits::has_serialize<T, ArchiveType>::value;
 			SERIALIZE_FUNCTION_NAME(*self, const_cast<T&>(t));
 			return *self;
 		}
@@ -103,7 +111,7 @@ namespace Serialize_
 		template <class T, PROCESS_IF(serialize_array)>
 		inline ArchiveType& ProcessImp(T const &t)
 		{
-			bool ret = traits::has_serialize<T, ArchiveType>::value;
+			//bool ret = traits::has_serialize<T, ArchiveType>::value;
 			SERIALIZE_ARR_FUNCTION_NAME(*self, const_cast<T&>(t));
 			return *self;
 		}
@@ -111,18 +119,59 @@ namespace Serialize_
 		template <class T, PROCESS_IF(member_serialize)>
 		inline ArchiveType& ProcessImp(T const &t)
 		{
-			bool ret = traits::has_serialize<T, ArchiveType>::value;
+			//bool ret = traits::has_serialize<T, ArchiveType>::value;
 			traits::access::member_serialize(*self, const_cast<T&>(t));
 			return *self;
 		}
 
-		//! Empty class specialization
-		template <class T, traits::EnableIf<std::is_empty<T>::value> = traits::sfinae> inline
-			ArchiveType & ProcessImp(T const &t)
+		//对base指针处理，重新推导成derived类型后进行序列化
+		template <class T, std::enable_if_t<std::is_pointer<T>::value,void>* = nullptr> inline
+			ArchiveType & ProcessImp(T const & t)
 		{
-			static_assert(std::is_empty<T>::value,"not support empty class!");
+			std::type_info  const &derivedinfo = typeid(*t);
+			static std::type_info const & baseinfo = typeid(typename std::remove_pointer<T>::type);
+			auto const &bindingMap = TSingleton<BindingMap<ArchiveType> >::GetInstance().map;
+			auto binding = bindingMap.find(type_index(derivedinfo));
+			if (binding == bindingMap.end())
+			{
+				string name = type_index(derivedinfo).name();
+				UNREGISTERED_POLYMORPHIC_EXCEPTION(name);
+				return *self;
+			}
+			else if (derivedinfo == baseinfo)
+			{
+				//如果是子类则直接处理
+				(*self)(*t);
+				return *self;
+			}
+			binding->second.cast2derived(self, t, baseinfo);
 			return *self;
 		}
+
+		//屏蔽BinayData歧义，过滤没有serialize成员方法的类型t,且没有偏特化的serialize匹配
+		template <class T, std::enable_if_t<std::is_class<T>::value & !traits::has_serialize<T, ArchiveType>::value & !traits::has_member_serialize<T, ArchiveType>::value>* = nullptr> inline
+			ArchiveType & ProcessImp(T const &t)
+		{
+			std::type_info const &derivedinfo = typeid(t);
+			std::type_info const &baseinfo = typeid(typename std::remove_reference<T>::type);
+			auto const &bindingMap = TSingleton<BindingMap<ArchiveType>>::GetInstance().map;
+			auto binding = bindingMap.find(std::type_index(derivedinfo));
+			if (binding == bindingMap.end())
+			{
+				string name = type_index(derivedinfo).name();
+				UNREGISTERED_POLYMORPHIC_EXCEPTION(name);
+				return *self;
+			}
+			binding->second.cast2derived(self, &t, baseinfo);
+			return *self;
+		}
+
+// 		template <class T, std::enable_if_t<std::is_class<T>::value & >* = nullptr> inline
+// 			ArchiveType & ProcessImp(T const &t)
+// 		{
+// 			static_assert(std::is_empty<T>::value, "not support empty class!");
+// 			return *self;
+// 		}
 // 		//! not support class specialization
 // 		template <class T> inline
 // 			ArchiveType & ProcessImp(T const &t)

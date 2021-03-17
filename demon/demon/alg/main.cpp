@@ -10,9 +10,10 @@
 #include <errno.h>
 #include <time.h>
 #include <assert.h>
+#include <typeinfo>
 #include "test.h"
+#include "testQueue.h"
 #include "protocol.h"
-using namespace Packets;
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
@@ -25,11 +26,149 @@ using namespace std;
 #include <windows.h>
 #endif
 
+#ifndef _WIN32
+TEST_CASE("test localtime_r")
+{
+	test_localtime_r();
+}
+#endif
+
+class testA
+{
+public:
+	testA(){}
+	~testA(){}
+};
+
+class testB
+{
+public:
+	testB() {}
+	~testB() {}
+	template<class Archive>
+	void serialize(Archive ar) {};
+};
+
+TEST_CASE("register_relationship")
+{
+	string str1 = "123456789";
+	auto str2 = str1.substr(7);
+	CHECK_EQ(str2, "89");
+
+	CHECK_EQ(std::is_pod<base>::value, false);
+	CHECK_EQ(std::is_class<base>::value, true);
+	CHECK_EQ(traits::has_member_serialize<base, TBinaryArchive>::value, false);
+	CHECK_EQ(traits::has_member_serialize<Hello, TBinaryArchive>::value,true);
+	//r1 = std::is_base_of<BinaryData<char>, <BinaryData<char> >>::value;
+	//测试BinaryData<char>是否为BinaryData 偏特化类型
+	CHECK_EQ(is_specialization<BinaryData<char>, BinaryData>::value,true);
 
 
+	auto & RelationMap = TSingleton<PolymorphicCasters>::GetInstance().map;
+	Hello *phello = new Hello;
+	phello->a = 0x12;
+	phello->b = 0x1234;
+	phello->c = 0x12345678;
+	phello->d = 0x1234567812345678;
+	base *pbaseHello = phello;
+	Reissue *pReissue = new Reissue;
+	base *pReissuebase = pReissue;
+	base &pReissuebase1 = *pReissue;
+
+
+	auto ret = std::is_polymorphic<std::remove_reference<decltype(*phello)>::type>::value;
+	auto ret2 = std::is_polymorphic<std::remove_reference<decltype(phello)>::type>::value;
+	printf("name:%s\n",  type_index(typeid(decltype(phello))).name());
+	auto ret3 = std::is_polymorphic<std::remove_reference<decltype(pReissuebase1)>::type>::value;
+
+
+	const auto derivedKey = std::type_index(typeid(decltype(*phello)));
+	const auto baseKey = std::type_index(typeid(decltype(*pbaseHello)));
+	if (derivedKey == baseKey)
+	{
+		printf("type index 11111\n");
+	}
+	
+
+	const auto base13 = std::type_index(typeid(pReissuebase1));
+	std::type_info const & ptrinfo = typeid(pReissuebase);
+	std::type_info const & ptrinfo1 = typeid(*pReissuebase);
+	const auto baseKey12 = std::type_index(ptrinfo);
+	const auto baseKey112 = std::type_index(ptrinfo1);
+	const auto derivedKey11 = std::type_index(typeid(decltype(*pReissue)));
+	const auto baseKey11 = std::type_index(typeid(decltype(*pReissuebase)));//基类错误的转换，没有考虑rtti，最终类型是基类不是子类
+	if (derivedKey11 == baseKey11)
+	{
+		printf("type index 22222\n");
+	}
+
+	auto baseIter = RelationMap.find(baseKey11);
+	if (baseIter != RelationMap.end())
+	{
+		printf("find %s\n", baseKey11.name());
+
+		auto const & derivedMap = baseIter->second;
+		auto derivedIter = derivedMap.find(base13);
+		if (derivedIter != derivedMap.end())
+		{
+			printf("find %s\n", base13.name());
+			auto polycast = derivedIter->second;
+			auto derivedObj = polycast->downcast(pReissuebase);
+			std::stringstream stream;
+			TBinaryArchive WArchive(eSerializeWrite, stream, true);
+#if 0
+			testA a;
+			testB b;
+			WArchive(a);
+			WArchive(&a);
+			WArchive(b);
+			WArchive(&b);
+#endif
+
+			auto ret1 =  std::is_class<base>::value;
+			auto ret2 = traits::has_serialize<base, TBinaryArchive>::value;
+			WArchive(*pbaseHello);
+			WArchive(pbaseHello, pbaseHello);
+
+
+			Hello *phello_1 = new Hello;
+			Hello *phello_2 = new Hello;
+			base *phello_3 = new Hello;
+			std::stringstream stream1;
+			TBinaryArchive RArchive1(eSerializeRead, stream, true);
+			RArchive1(*phello_1, phello_2, phello_3);
+			CHECK_EQ(phello->d, phello_1->d);
+			CHECK_EQ(phello->b, phello_2->b);
+			CHECK_EQ(phello->d, dynamic_cast<Hello*>(phello_3)->d);
+			//auto derived = PolymorphicCasters::upcast(pReissuebase1, baseInfo);
+		}
+	}
+	if (derivedKey11 == baseKey12)
+	{
+
+	}
+}
+
+
+TEST_CASE("test_stringstream")
+{
+	char temp[] = {'1','2','\0','3'};
+	std::stringstream stream;
+	stream << temp;
+	printf("test_stringstream  str:%s,%ld\n", stream.str().c_str(), stream.str().length());
+	std::stringstream stream1;
+	stream1.rdbuf()->sputn(temp, sizeof(temp));
+	for (auto &c : stream1.str())
+	{
+		printf("%c", c);
+	}
+	printf("\n");
+}
+
+//测试条件变量虚假唤醒和唤醒丢失
 TEST_CASE("Condition_var_test")
 {
-	condtion_var_test();
+	//condtion_var_test();
 }
 
 
@@ -45,162 +184,6 @@ static string ToHex1(const string& s, bool upper_case = true)
 }
 
 
-class CCircleBuf
-{
-public:
-	CCircleBuf()
-	{
-		m_state = false;
-	}
-	~CCircleBuf()
-	{
-
-	}
-public:
-	int    Initial(int size)
-	{
-		if (m_state == true)
-		{
-			printf("it's already initial!\n");
-			return -1;
-		}
-		if (size & (size - 1))
-		{
-			printf("buffer size must be 2 Power\n");
-			return -1;
-		}
-		m_size = size;
-		m_in = m_out = 0;
-		m_buf = new unsigned char[size];
-		memset(m_buf, 0, sizeof(size));
-		m_state = true;
-		return 0;
-	}
-	int Destroy()
-	{
-		return 0;
-	}
-	unsigned short fifo_read(char *buf, unsigned short len)
-	{
-		std::unique_lock<std::mutex> lock(m_mutex);
-		unsigned short node_len = 0;
-		if (0 == GetUsedlen())
-		{
-			printf("********** there is no data to read!\r\n");
-			return 0;
-		}
-		//读取数据长度
-		if (0 == Read((char*)&node_len, sizeof(node_len)))
-		{
-			printf("********** get node_len faild!\r\n");
-			return 0;
-		}
-		//读取数据内容
-		if (len < node_len)
-		{
-			printf("********** buf size is small!\r\n");
-			return 0;
-		}
-
-		if (0 == Read(buf, node_len))
-		{
-			printf("********** get node_content faild!\r\n");
-			return 0;
-		}
-		//优化，如果数据读取完毕则重置m_in，m_out
-		if (0 == GetUsedlen())
-		{
-			m_in = m_out = 0;
-		}
-		return len;
-	}
-	unsigned short fifo_write(char *buf, unsigned short len)
-	{
-		std::unique_lock<std::mutex> lock(m_mutex);
-		if (GetUsedlen() + sizeof(len) + len > m_size)
-		{
-			printf("********** the room of buf is full!\r\n");
-			return 0;
-		}
-		//写入文件长度
-		Write((char*)&len, sizeof(len));
-		//写入数据内容
-		Write(buf, len);
-		return len;
-	}
-protected:
-	unsigned short Read(char *buf, unsigned short len)
-	{
-		//获取使用空间大小    
-		unsigned short used_size = GetUsedlen();
-		len = min(len, used_size);
-		unsigned short lelf = min(len, (unsigned short)(m_size - (m_out &(m_size - 1))));
-		memcpy(buf, m_buf + (m_out & (m_size - 1)), lelf);
-		memcpy(buf + lelf, m_buf, len - lelf);
-		m_out += len;
-		return len;
-	}
-	unsigned short Write(char *buf, unsigned short len)
-	{
-		//获取使用空间大小    
-		unsigned short used_size = GetUsedlen();
-		len = min(len, (unsigned short)(m_size - used_size));
-		unsigned short lelf = min(len, (unsigned short)(m_size - (m_in &(m_size - 1))));
-		memcpy(m_buf + (m_in &(m_size - 1)), buf, lelf);
-		memcpy(m_buf, buf + lelf, len - lelf);
-		m_in += len;
-		return len;
-	}
-	unsigned short GetUsedlen()
-	{
-		return m_in - m_out;
-	}
-private:
-	bool				m_state;
-	unsigned char		*m_buf;
-	unsigned short		m_size;
-	unsigned short		m_in;
-	unsigned short		m_out;
-	std::mutex			m_mutex;
-};
-
-#ifdef WIN32
-CCircleBuf gCircleBuf;
-void ThreadRead()
-{
-	char temp[1024] = { '\0' };
-	char buf[128] = { '\0' };
-	while (1)
-	{
-		memset(temp, 0, sizeof(temp));
-		memset(buf, 0, sizeof(buf));
-		if (gCircleBuf.fifo_read(buf, sizeof(buf)) > 0)
-		{
-			sprintf_s(temp, "read data:%s\r\n", buf);
-			OutputDebugString(temp);
-		}
-		//Sleep(1 * 1000);
-	}
-}
-
-
-void ThreadWrite()
-{
-	srand(time(NULL));
-	while (1)
-	{
-		char buf[128] = { '\0' };
-		sprintf_s(buf, "(%d)", rand());
-		OutputDebugString(buf);
-		if (gCircleBuf.fifo_write(buf, strlen(buf)))
-		{
-			//写入失败休眠50ms
-			Sleep(0);
-		}
-		//Sleep(1 * 1000);
-	}
-}
-#endif // WIN32
 
 
 
@@ -509,12 +492,21 @@ TEST_CASE("Serialize")
 
 	std::stringstream stream1;
 	TBinaryArchive wArchive1(eSerializeWrite, stream1, false);
+#if 1
 	Hello hello;
 	hello.a = a;
 	hello.b = b;
 	hello.c = c;
 	hello.d = d;
 	wArchive1(hello);
+#else
+	base *pBase = new Hello;//
+	((Hello*)pBase)->a = a;
+	((Hello*)pBase)->b = b;
+	((Hello*)pBase)->c = c;
+	((Hello*)pBase)->d = d;
+	wArchive1(*pBase);
+#endif
 
 	wArchive(arr1, a, b, c, d,arr );
 
@@ -533,8 +525,8 @@ TEST_CASE("Serialize")
 	auto BData = Binary_data(pBuf, len); //if T is lvalue that will be deduced to T&
 	//auto BData = Binary_data_(pBuf, len);
 	wArchive(BData);
-	printf("stream  len:%ld,str:%s\n", stream.str().length(), ToHex1(stream.str()));
-	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()));
+	printf("stream  len:%ld,str:%s\n", stream.str().length(), ToHex1(stream.str()).c_str());
+	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()).c_str());
 
 	TBinaryArchive rArchive(eSerializeRead, stream, Serialize_::TBinaryArchive::Options::LittleEndian());
 
@@ -612,7 +604,7 @@ TEST_CASE("Serialize1")
 	reissue.m_vCanDate.push_back(e);
 	wArchive1(reissue);
 
-	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()));
+	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()).c_str());
 
 	TBinaryArchive rArchive1(eSerializeRead, stream1, false);
 	Hello hello1;
@@ -844,7 +836,11 @@ TEST_CASE("TQUEUE_TEST")
 		char buff[128] = { '\0' };
 		time_t now = t;
 		struct tm  cur;
+#ifdef WIN32
 		localtime_s(&cur, &now);
+#else
+		localtime_r(&now, &cur);
+#endif
 		sprintf_s(buff, sizeof(buff), "%04d-%02d-%02d %02d:%02d:%02d", cur.tm_year + 1900, cur.tm_mon + 1, cur.tm_mday, cur.tm_hour, cur.tm_min, cur.tm_sec);
 		return buff;
 	};

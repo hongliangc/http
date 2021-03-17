@@ -2,6 +2,7 @@
 #include <thread>
 #include <iostream>
 #include <vector>
+#include <list>
 #include <numeric>
 #include <future>
 
@@ -80,7 +81,8 @@ void test_future()
 and both the parent and the child are parametric in other template argument(s)
 奇异递归模板模式 (Curiously recurring template pattern)
 */
-template <template <class> class DERIVED, class VALUE> class base1 {
+template <template <class> class DERIVED, class VALUE> 
+class base1 {
 public:
 	void do_something(VALUE v) {
 		printf("base1 do something\n");
@@ -169,6 +171,7 @@ public:
 /*//Templated functions are instantiated at the POI and can't be virtual 
 (what is the signature??How many vtable entries do you reserve?). 
 Templated functions are a compile-time mechanism, virtual functions a runtime one.
+模板函数是以poi类型进行初始化的，不能为虚函数，模板函数是依靠编译时机制生成的，虚函数是运行期
 */
 int test_template_override()
 {
@@ -246,7 +249,7 @@ void setDataReady() {
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	{
 		//std::unique_lock<std::mutex> lck(mutex_); 
-		//!!!!!!!!!!!! 如果dataReady 不在锁下面，可以condVar.wait处于死锁 !!!!!!!!!!!!!!!!!!!!!!!
+		//!!!!!!!!!!!! 如果dataReady 不在锁下面，可能造成condVar.wait死锁 !!!!!!!!!!!!!!!!!!!!!!!
 		dataReady = true;
 	}
 	std::cout << "Data prepared" << std::endl;
@@ -268,3 +271,72 @@ void condtion_var_test() {
 	std::cout << std::endl;
 
 }
+
+
+//测试是一个类型为某种类型的偏特化类型
+template<typename Test, template<typename...> class Ref>
+struct is_specialization : std::false_type {};
+
+/*偏特化，自己的模板参数自定义，使用的时候去判断是否匹配
+	Ref标识为基础的模板，Args为模板参数，在特例化中
+	Ref<Args...>表示为偏特化的通用类型。
+	例如Ref为vector，Args为int，此时Ref<Args...>就是
+	vector<int>，满足偏特化条件
+*/
+// template<template<typename...> class Ref, typename... Args>
+// struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
+
+template<template<class> class Ref,class Args>
+struct is_specialization<Ref<Args>,Ref>: std::true_type{};
+
+void test_specializaton()
+{
+	typedef std::vector<int> vec;
+	typedef int not_vec;
+	std::cout << is_specialization<vec, std::vector>::value << is_specialization<not_vec, std::vector>::value;
+
+	typedef std::list<int> lst;
+	typedef int not_lst;
+	std::cout << is_specialization<lst, std::list>::value << is_specialization<not_lst, std::list>::value;
+}
+
+#ifndef _WIN32 
+
+/*! 测试loacltime_r导致死锁*/
+void *mytest(void *arg)
+{
+	pthread_detach(pthread_self());
+
+	time_t current;
+	struct tm date;
+	time(&current);
+
+	while (1) {
+		localtime_r(&current, &date);
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		printf("thread id:%d OK \n", *(int*)arg);
+	}
+}
+
+int test_localtime_r()
+{
+	int i = 0;
+	pthread_t tid[10];
+
+	for (i = 0; i < 10; i++) {
+		int *num = new int;
+		*num = i;
+		pthread_create(&tid[i], NULL, mytest, (void*)(num));
+	}
+
+	sleep(1);
+
+	pthread_cancel(tid[0]);
+	pthread_cancel(tid[1]);
+	pthread_cancel(tid[2]);
+	pthread_cancel(tid[3]);
+
+	while (1)
+		sleep(100000000);
+}
+#endif

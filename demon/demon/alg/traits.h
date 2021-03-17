@@ -61,6 +61,15 @@ namespace traits
 	template<bool ...Conditions>
 	using EnableIf = typename EnableIfHelper<Conditions...>::type;
 
+
+
+	/*! 通过fun方法检测是否支持该操作，如果支持test方法返回的类型就是yes
+		例如检测的类型是int，char等类型时，通过不同偏特化的ProcessImp方法
+		选择序列化方式 ，最终会匹配template <class T, PROCESS_IF(serialize)>
+		类型，因为serialize方法是支持std::is_arithmetic类型的
+		检测类型如果是int[],最终会匹配emplate <class T, PROCESS_IF(serialize_array)>，
+		因为serialize_array方法是支持std::is_array数组类型
+	*/
 #define MAKE_HAS_NON_MEMBER_TEST(test_name, fun)														\
 	template<class T,class A>																			\
 	struct has_##test_name##_impl 																		\
@@ -80,6 +89,10 @@ namespace traits
 
 
 	//########################################################################################
+
+	/*! 通过fun方法检测是否支持该操作，如果支持test方法返回的类型就是yes
+	 检测的类型是是否为包含成员函数serialize
+	*/
 #define MAKE_HAS_MEMBER_SERIALIZE_TEST(test_name)																		    \
 																															\
       template <class T, class A>                                                                                           \

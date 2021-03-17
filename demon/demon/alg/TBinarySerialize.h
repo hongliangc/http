@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
+#include "poly_impl.h"
 using namespace std;
 namespace Serialize_
 {
@@ -42,8 +43,7 @@ namespace Serialize_
 		};
 	public:
 		explicit TBinaryArchive(eSerializeMode mode, std::iostream &stream, const Options & options = Options::Default()) :
-			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(false)
-		{
+			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(false) {
 			if (mode == eSerializeWrite)
 			{
 				m_convertEndian = is_little_endian() ^ options.is_little_endian();
@@ -56,8 +56,18 @@ namespace Serialize_
 				m_convertEndian = endian ^ options.is_little_endian();
 			}
 		}
+
+		/*!
+		* @brief 序列化对象初始化
+		* @param mode
+		*	 序列化读或者写
+		* @param stream
+		*	 序列化后数据存储的对象
+		* @param convert
+		*	 是否进行大小端转换，true进行转换
+		*/
 		explicit TBinaryArchive(eSerializeMode mode, std::iostream &stream, bool convert):
-			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(convert){
+			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(convert) {
 		}
 	public:
 		bool IsRead()
@@ -81,11 +91,20 @@ namespace Serialize_
 				loadBinary<DataSize>(data, size);
 			}
 		}
+		const void MarkTag()
+		{
+			m_buf.clear();
+		}
+
+		const string& GetMarkString()
+		{
+			return m_buf;
+		}
 
 		const string GetSerializeString()
 		{
 			try
-			{
+			{				
 				return (dynamic_cast<std::stringstream&>(m_data)).str();
 			}
 			catch (const std::exception &e)
@@ -106,16 +125,23 @@ namespace Serialize_
 				{
 					for (std::streamsize j = 0; j < DataSize; ++j)
 					{
-						writtenSize += m_data.rdbuf()->sputn(reinterpret_cast<const char*>(data) + DataSize - j - 1 + i, 1);
+						string temp(reinterpret_cast<const char*>(data) + DataSize - j - 1 + i, 1);
+						writtenSize += m_data.rdbuf()->sputn(temp.c_str(), temp.length());
+						m_buf += temp;
 					}
 				}
 			}
 			else
 			{
-				writtenSize = m_data.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
+				string temp(reinterpret_cast<const char*>(data), (unsigned int)size);
+				writtenSize = m_data.rdbuf()->sputn(temp.c_str(), temp.length());
+				m_buf += temp;
 			}
 			if (writtenSize != size)
-				throw Exception("Failed to write:" + std::to_string(size) + ",bytes to output stream! Wrote:" + std::to_string(writtenSize));
+			{
+				//throw Exception("Failed to write:" + std::to_string(size) + ",bytes to output stream! Wrote:" + std::to_string(writtenSize));
+				return;
+			}
 		}
 
 		template<std::streamsize DataSize>
@@ -124,7 +150,11 @@ namespace Serialize_
 			//load data
 			auto const readSize = m_data.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
 			if (readSize != size)
-				throw Exception("Failed to read:" + std::to_string(size) + ",bytes from input stream! Read:" + std::to_string(readSize));
+			{
+				//throw Exception("Failed to read:" + std::to_string(size) + ",bytes from input stream! Read:" + std::to_string(readSize));
+				return;
+			}
+			m_buf += string(reinterpret_cast<char*>(data), (unsigned int)size);
 
 			//flip bits if needed
 			if (m_convertEndian)
@@ -137,6 +167,8 @@ namespace Serialize_
 			}
 		}
 	private:
+		//记录数据的偏移量
+		std::string  m_buf;
 		eSerializeMode m_mode;
 		std::iostream & m_data;
 		uint8_t m_convertEndian; //!< IF set to true, we will need to swap bytes upon saving
@@ -205,3 +237,5 @@ namespace Serialize_
 	}
 
 };
+
+REGISTER_ARCHIVE(Serialize_::TBinaryArchive)
