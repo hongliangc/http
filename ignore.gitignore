@@ -15,8 +15,10 @@
 *.cache
 *.ilk
 *.log
+*.o
 [Dd]ebug*/
 
+demon/demon/Bin/build
 *.sbr
 Thumbs.db
 [Ll]ib/
