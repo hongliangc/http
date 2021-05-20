@@ -159,7 +159,7 @@ static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
  err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
-    _cleanse(buf, num);
+	_clear_free(buf, num);
     return r;
 }
 
@@ -362,7 +362,7 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
  err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
-    _cleanse(buf, num);
+	_clear_free(buf, num);
     return r;
 }
 
@@ -486,7 +486,7 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
 err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
-    _cleanse(buf, num);
+	_clear_free(buf, num);
     return r;
 }
 
@@ -572,7 +572,7 @@ static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
  err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
-    _cleanse(buf, num);
+	_clear_free(buf, num);
     return r;
 }
 
