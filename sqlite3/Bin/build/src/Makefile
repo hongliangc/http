@@ -48,24 +48,13 @@ RM = /usr/local/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/hongliangc/Dev/test/sqlite3
+CMAKE_SOURCE_DIR = /home/hongliangc/openSource/test/http/sqlite3
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/hongliangc/Dev/test/sqlite3/Bin/build
+CMAKE_BINARY_DIR = /home/hongliangc/openSource/test/http/sqlite3/Bin/build
 
 #=============================================================================
 # Targets provided globally by CMake.
-
-# Special rule for the target edit_cache
-edit_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
-	/usr/local/bin/ccmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : edit_cache
-
-# Special rule for the target edit_cache
-edit_cache/fast: edit_cache
-
-.PHONY : edit_cache/fast
 
 # Special rule for the target rebuild_cache
 rebuild_cache:
@@ -78,16 +67,27 @@ rebuild_cache/fast: rebuild_cache
 
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target edit_cache
+edit_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
+	/usr/local/bin/ccmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : edit_cache
+
+# Special rule for the target edit_cache
+edit_cache/fast: edit_cache
+
+.PHONY : edit_cache/fast
+
 # The main all target
 all: cmake_check_build_system
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(CMAKE_COMMAND) -E cmake_progress_start /home/hongliangc/Dev/test/sqlite3/Bin/build/CMakeFiles /home/hongliangc/Dev/test/sqlite3/Bin/build/src/CMakeFiles/progress.marks
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/hongliangc/Dev/test/sqlite3/Bin/build/CMakeFiles 0
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(CMAKE_COMMAND) -E cmake_progress_start /home/hongliangc/openSource/test/http/sqlite3/Bin/build/CMakeFiles /home/hongliangc/openSource/test/http/sqlite3/Bin/build/src/CMakeFiles/progress.marks
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/hongliangc/openSource/test/http/sqlite3/Bin/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/clean
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/clean
 .PHONY : clean
 
 # The main clean target
@@ -97,22 +97,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/preinstall
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/preinstall
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 src/CMakeFiles/sqlite_test.dir/rule:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/CMakeFiles/sqlite_test.dir/rule
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f CMakeFiles/Makefile2 src/CMakeFiles/sqlite_test.dir/rule
 .PHONY : src/CMakeFiles/sqlite_test.dir/rule
 
 # Convenience name for target.
@@ -122,7 +122,7 @@ sqlite_test: src/CMakeFiles/sqlite_test.dir/rule
 
 # fast build rule for target.
 sqlite_test/fast:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/build
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/build
 .PHONY : sqlite_test/fast
 
 main.o: main.cpp.o
@@ -131,7 +131,7 @@ main.o: main.cpp.o
 
 # target to build an object file
 main.cpp.o:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/main.cpp.o
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/main.cpp.o
 .PHONY : main.cpp.o
 
 main.i: main.cpp.i
@@ -140,7 +140,7 @@ main.i: main.cpp.i
 
 # target to preprocess a source file
 main.cpp.i:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/main.cpp.i
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/main.cpp.i
 .PHONY : main.cpp.i
 
 main.s: main.cpp.s
@@ -149,7 +149,7 @@ main.s: main.cpp.s
 
 # target to generate assembly for a file
 main.cpp.s:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/main.cpp.s
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(MAKE) -f src/CMakeFiles/sqlite_test.dir/build.make src/CMakeFiles/sqlite_test.dir/main.cpp.s
 .PHONY : main.cpp.s
 
 # Help Target
@@ -158,9 +158,9 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... sqlite_test"
+	@echo "... edit_cache"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
@@ -175,6 +175,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /home/hongliangc/Dev/test/sqlite3/Bin/build && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /home/hongliangc/openSource/test/http/sqlite3/Bin/build && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

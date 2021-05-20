@@ -1,4 +1,4 @@
-# Install script for directory: /home/hongliangc/Dev/test/sqlite3
+# Install script for directory: /home/hongliangc/openSource/test/http/sqlite3
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/hongliangc/Dev/test/sqlite3/Bin/build/src/cmake_install.cmake")
+  include("/home/hongliangc/openSource/test/http/sqlite3/Bin/build/src/cmake_install.cmake")
 
 endif()
 
@@ -51,5 +51,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/hongliangc/Dev/test/sqlite3/Bin/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/hongliangc/openSource/test/http/sqlite3/Bin/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

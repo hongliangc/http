@@ -89,10 +89,13 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>.\encrypt;.\sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>.\sdk;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>sqlite3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -146,19 +149,96 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="encrypt\aes\aes_cbc.c" />
+    <ClCompile Include="encrypt\aes\aes_cfb.c" />
+    <ClCompile Include="encrypt\aes\aes_core.c" />
+    <ClCompile Include="encrypt\aes\aes_ecb.c" />
+    <ClCompile Include="encrypt\aes\aes_ige.c" />
+    <ClCompile Include="encrypt\aes\aes_misc.c" />
+    <ClCompile Include="encrypt\aes\aes_ofb.c" />
+    <ClCompile Include="encrypt\aes\aes_wrap.c" />
+    <ClCompile Include="encrypt\aes\aes_x86core.c" />
+    <ClCompile Include="encrypt\bn\bn_add.c" />
+    <ClCompile Include="encrypt\bn\bn_asm.c" />
+    <ClCompile Include="encrypt\bn\bn_blind.c" />
+    <ClCompile Include="encrypt\bn\bn_const.c" />
+    <ClCompile Include="encrypt\bn\bn_ctx.c" />
+    <ClCompile Include="encrypt\bn\bn_depr.c" />
+    <ClCompile Include="encrypt\bn\bn_dh.c" />
+    <ClCompile Include="encrypt\bn\bn_div.c" />
+    <ClCompile Include="encrypt\bn\bn_err.c" />
+    <ClCompile Include="encrypt\bn\bn_exp.c" />
+    <ClCompile Include="encrypt\bn\bn_exp2.c" />
+    <ClCompile Include="encrypt\bn\bn_gcd.c" />
+    <ClCompile Include="encrypt\bn\bn_gf2m.c" />
+    <ClCompile Include="encrypt\bn\bn_intern.c" />
+    <ClCompile Include="encrypt\bn\bn_kron.c" />
+    <ClCompile Include="encrypt\bn\bn_lib.c" />
+    <ClCompile Include="encrypt\bn\bn_mod.c" />
+    <ClCompile Include="encrypt\bn\bn_mont.c" />
+    <ClCompile Include="encrypt\bn\bn_mpi.c" />
+    <ClCompile Include="encrypt\bn\bn_mul.c" />
+    <ClCompile Include="encrypt\bn\bn_nist.c" />
+    <ClCompile Include="encrypt\bn\bn_prime.c" />
+    <ClCompile Include="encrypt\bn\bn_print.c" />
+    <ClCompile Include="encrypt\bn\bn_rand.c" />
+    <ClCompile Include="encrypt\bn\bn_recp.c" />
+    <ClCompile Include="encrypt\bn\bn_shift.c" />
+    <ClCompile Include="encrypt\bn\bn_sqr.c" />
+    <ClCompile Include="encrypt\bn\bn_sqrt.c" />
+    <ClCompile Include="encrypt\bn\bn_srp.c" />
+    <ClCompile Include="encrypt\bn\bn_word.c" />
+    <ClCompile Include="encrypt\bn\bn_x931p.c" />
+    <ClCompile Include="encrypt\bn\rsaz_exp.c" />
+    <ClCompile Include="encrypt\b_print.c" />
+    <ClCompile Include="encrypt\modes\cbc128.c" />
+    <ClCompile Include="encrypt\modes\ccm128.c" />
+    <ClCompile Include="encrypt\modes\cfb128.c" />
+    <ClCompile Include="encrypt\modes\ctr128.c" />
+    <ClCompile Include="encrypt\modes\cts128.c" />
+    <ClCompile Include="encrypt\modes\gcm128.c" />
+    <ClCompile Include="encrypt\modes\ocb128.c" />
+    <ClCompile Include="encrypt\modes\ofb128.c" />
+    <ClCompile Include="encrypt\modes\wrap128.c" />
+    <ClCompile Include="encrypt\modes\xts128.c" />
+    <ClCompile Include="encrypt\type_.c" />
+    <ClCompile Include="encrypt\rsa.c" />
+    <ClCompile Include="encrypt\rsa_ossl.c" />
+    <ClCompile Include="encrypt\rsa_pk1.c" />
+    <ClCompile Include="encrypt\tools.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="protocol.cpp" />
+    <ClCompile Include="rsa_test.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="encrypt\aes.h" />
+    <ClInclude Include="encrypt\aes\aes.h" />
+    <ClInclude Include="encrypt\aes\aes_local.h" />
+    <ClInclude Include="encrypt\aes_local.h" />
+    <ClInclude Include="encrypt\bn.h" />
+    <ClInclude Include="encrypt\bn\bn_local.h" />
+    <ClInclude Include="encrypt\bn\bn_prime.h" />
+    <ClInclude Include="encrypt\bn\rsaz_exp.h" />
+    <ClInclude Include="encrypt\constant_time.h" />
+    <ClInclude Include="encrypt\modes.h" />
+    <ClInclude Include="encrypt\modes\modes_local.h" />
+    <ClInclude Include="encrypt\modes_local.h" />
+    <ClInclude Include="encrypt\type_.h" />
+    <ClInclude Include="encrypt\evp.h" />
+    <ClInclude Include="encrypt\rsa.h" />
+    <ClInclude Include="encrypt\rsa_local.h" />
+    <ClInclude Include="encrypt\tools.h" />
     <ClInclude Include="IPackets.h" />
     <ClInclude Include="ISerialize.h" />
     <ClInclude Include="poly_impl.h" />
     <ClInclude Include="protocol.h" />
+    <ClInclude Include="sqlite.h" />
     <ClInclude Include="TBinarySerialize.h" />
     <ClInclude Include="test.h" />
     <ClInclude Include="testQueue.h" />
     <ClInclude Include="TQueue.h" />
     <ClInclude Include="traits.h" />
+    <ClInclude Include="utility.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,4 +1,7 @@
 #include<iostream>
+#ifdef WIN32
+#include <windows.h>
+#endif
 #include <stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -9,29 +12,537 @@
 #include <algorithm>
 #include <errno.h>
 #include <time.h>
+#include <chrono>
 #include <assert.h>
 #include <typeinfo>
 #include "test.h"
 #include "testQueue.h"
 #include "protocol.h"
+#include "sqlite.h"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-
-#include "TBinarySerialize.h"
-using namespace Serialize_;
-
-using namespace std;
-
-#ifdef WIN32
-#include <windows.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
-
-#ifndef _WIN32
-TEST_CASE("test localtime_r")
-{
-	test_localtime_r();
+#include "tools.h"
+#include "rsa.h"
+#include "rsa_local.h"
+#include "bn.h"
+#ifdef __cplusplus
 }
 #endif
+#include "aes.h"
+#include "TBinarySerialize.h"
+using namespace Serialize_;
+using namespace std;
+
+#define SGMW_PUBKEY 1
+TEST_CASE("OPENSSL_RSA")
+{
+	RSA* rsa = RSA_new_method();
+#if SGMW_PUBKEY
+	char n_data[] = "AB37CF906566CDE4688B422BF312F7B47734DD34E02A876D93A6126C9D45A34856CEF0CA9011C7DCE14E6742C36C0DFD5EC673C397D6B9B429386755747115A5B534D4F399BD156867E56DA5A00E538D148810FE0CA8EB4BB9DF93DB8ABD2EE4399F5AAA259664C5240B993D15232FBAB1959C733316A7D3808580C4A1327BD5";
+	char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+	char e_data[] = "10001";
+#else
+	char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
+	char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+	char e_data[] = "10001";
+#endif
+	BN_hex2bn(&(rsa->e), e_data);
+	BN_hex2bn(&(rsa->n), n_data);
+	BN_hex2bn(&(rsa->d), d_data);
+	unsigned char* from = (unsigned char*)malloc(128);
+	memset(from, 0, 128);
+#if 1
+	for (int i = 0; i < 128; i++){
+		from[i] = 0;
+		if (i >= 112)
+			from[i] = i -112;
+	}
+#else
+	for (int i = 0; i < 16; i++)
+	{
+		from[i] = i;
+	}
+#endif
+	unsigned char* cifher = (unsigned char*)malloc(128);
+	memset(cifher, 0, 128);
+	unsigned char* to = (unsigned char*)malloc(128);
+	memset(to, 0, 128);
+	rsa->meth->rsa_pub_enc(128, from, cifher, rsa, RSA_NO_PADDING);
+	rsa->meth->rsa_priv_dec(128, cifher, to, rsa, RSA_NO_PADDING);
+
+	RSA_free(rsa);
+}
+
+
+TEST_CASE("OPENSSL_AES")
+{
+#define LEN 1024
+#define AES_LEN 16
+	unsigned char cipher[LEN] = { '\0' };
+	unsigned char cipher1[LEN] = { '\0' };
+	unsigned char output[LEN] = { '\0' };
+	AES_KEY en_key, de_key;
+	unsigned char key[AES_LEN] = { '\0' };
+	for (int i = 0; i < AES_LEN; i++)
+	{
+		key[i] = i;
+	}
+
+	{
+
+		char *data = "67D826D6394B41116F8162425B8ACDCD7C1848DD75CC65BE227F9FCFF846C656D8EB2CE7A957BF8EADF35AF7E8F85D0551A5BFDA042023C4AFB873922D4F1BCC88F924A92A34CA42FD4F87160D5B845799DA24CE2E1F03771F2FEB375374BA362584E99D2B86F9F324F2E37C3E7294BA8FC44DDD41932Dd6";
+		string content;
+		int len = strlen(data);
+		if (len % 2 != 0)
+		{
+			return;
+		}
+		_utility::ConvertHex2Str((uint8_t*)data, strlen(data), content);
+		len = len / 2;
+		unsigned char *input = new unsigned char[len / 2];
+		memcpy(cipher, content.data(), len);
+
+		/*!解密*/
+		AES_set_decrypt_key(key, 128, &de_key);
+		for (int i = 0; i < len; i += AES_BLOCK_SIZE)
+		{
+			AES_ecb_encrypt(cipher + i, output + i, &de_key, AES_DECRYPT);
+		}
+
+	}
+
+	{
+
+		unsigned char input[LEN] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,\
+				0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+
+
+		//int length = ((strlen(input) + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE)*AES_BLOCK_SIZE;  //对齐分组
+		/*!加密*/
+		AES_set_encrypt_key(key, 128, &en_key);
+		for (int i = 0; i < LEN; i += AES_BLOCK_SIZE)
+		{
+			AES_ecb_encrypt(input + i, cipher + i, &en_key, AES_ENCRYPT);
+		}
+
+		/*!解密*/
+		AES_set_decrypt_key(key, 128, &de_key);
+		//CHECK_EQ(0, memcmp((void*)&de_key, (void*)&en_key, sizeof(AES_KEY)));
+		memcpy(cipher1, cipher, LEN);
+		for (int i = 0; i < LEN; i += AES_BLOCK_SIZE)
+		{
+			AES_ecb_encrypt(cipher + i, output + i, &de_key, AES_DECRYPT);
+		}
+		CHECK_EQ(0, memcmp(input, output, strlen((char*)input)));
+	}
+	
+}
+
+
+TEST_CASE("RSA_1")
+{
+#ifndef RSA_1_
+	//1024bit
+	unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
+	unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+	unsigned char e_data[] = "10001";
+
+
+	int val = 0;
+
+
+	printf("\n*************************** Test RSA - Start ***************************\n");
+
+	bignum n, e, d, m, c, decypted_m;
+
+	//    m = str2bignum("12345678901234");
+
+	printf("The generated keys are...\n");
+	printf("n = ");
+	bignum_fromhexstring()
+	printbignum(n);
+	printf("e = ");
+	printbignum(e);
+	printf("d = ");
+	printbignum(d);
+
+	printf("\n\nMessage is:");
+	printbignum(m);
+
+	printf("\nEncrypting the message...\n");
+	c = RSAencrypt(m, e, n);
+	printf("Cipher is:");
+	printbignum(c);
+
+	printf("\n\nDecrypting the cipher...\n");
+	decypted_m = RSAdecrypt(c, d, n);
+	printf("Decrypted Message is:");
+	printbignum(decypted_m);
+	printf("\n\n%s\n", (compare(m, decypted_m) == 0) ? "RSA encryption-decryption correct" : "RSA encryption-decryption wrong");
+
+	free(n.tab);
+	free(e.tab);
+	free(d.tab);
+	free(m.tab);
+	free(c.tab);
+	free(decypted_m.tab);
+	printf("\n*************************** Test RSA - End ***************************\n");
+#elif defined RSA_2_
+
+	uint64_t input[18] = { 0 }, out[18] = { 0 }, encrypt[18] = { 0 }, n[18] = { 0 }, d[18] = { 0 }, e[18] = { 0 };
+	//1024bit
+	unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
+	unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+
+	e[0] = 0x10001;
+
+
+	int val = 0;
+	int len = strlen((char*)n_data) / 2;
+	char *buf = (char*)malloc(len);
+	memset(buf, 0, 128);
+	for (int i = 0; i < len; i++)
+	{
+		if (sscanf((char*)(n_data + 2 * (len - 1 - i)), "%02x", &val) != 1)
+		{
+			return;
+		}
+		buf[i] = val;
+	}
+	memcpy((char*)&n, buf, 128);
+
+	memset(buf, 0, 128);
+	for (int i = 0; i < len; i++)
+	{
+		if (sscanf((char*)(d_data + 2 * (len - 1 - i)), "%02x", &val) != 1)
+		{
+			return;
+		}
+		buf[i] = val;
+	}
+	memcpy((char*)d, buf, 128);
+
+
+	clock_t start_enc, stop_enc, start_dec, stop_dec;
+	unsigned long us_enc = 0, us_dec = 0;
+#if 0
+	char *p = (char*)input;
+	for (int i = 0; i < 128; i++)
+	{
+		p[i] = i;
+	}
+#endif
+	strcpy((char*)input, "hello, this is first rsa encode.");
+
+
+	start_enc = clock();
+
+	rsa1024(encrypt, input, e, n);
+
+	_utility::ToHex(string{ (char*)encrypt, 128 });
+	rsa1024(out, encrypt, d, n);
+	memset(buf, 0, 128);
+	memcpy((char*)buf, (char*)out, 128);
+#else
+	//1024bit
+	//unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
+	//unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+
+	unsigned char n_data[] = "AB37CF906566CDE4688B422BF312F7B47734DD34E02A876D93A6126C9D45A34856CEF0CA9011C7DCE14E6742C36C0DFD5EC673C397D6B9B429386755747115A5B534D4F399BD156867E56DA5A00E538D148810FE0CA8EB4BB9DF93DB8ABD2EE4399F5AAA259664C5240B993D15232FBAB1959C733316A7D3808580C4A1327BD5";
+	unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+
+
+	bignum *n = bignum_init(), *e = bignum_init(), *d = bignum_init();
+
+	bignum_fromhexstring(n, (char*)n_data, strlen((char*)n_data));
+	bignum_fromhexstring(d, (char*)d_data, strlen((char*)d_data));
+	int iE = 0x10001;//65537
+	bignum_fromint(e, iE);
+
+	printf("crypt_test...\n");
+	int bytes;
+	char* encoded;
+	int encode_len = 0;
+	char* decoded;
+	int decode_len = 0;
+	bignum* pub_exp;
+	bignum* pub_mod;
+	bignum* priv_exp;
+	bignum* priv_mod;
+	char* hello = (char*)malloc(128);
+#if 1
+	for (int i = 0; i < 16; i++)
+	{
+		hello[i] = i;
+	}
+#else
+	strcpy(hello, "hello, this is first rsa encode.");
+#endif
+	gen_rsa_key(&pub_exp, &pub_mod, &priv_exp, &priv_mod, &bytes);
+	printf("pub e:\n");
+	bignum_print(pub_exp);
+	printf("pub n:\n");
+	bignum_print(pub_mod);
+	printf("pub d:\n");
+	bignum_print(priv_exp);
+	printf("pub n:\n");
+	bignum_print(priv_mod);
+	encodeString(hello, 128, &encoded, &encode_len, pub_exp, pub_mod);
+	decodeString(encoded, encode_len, &decoded, &decode_len, priv_exp, priv_mod);
+	printf("############################\n");
+	printf("pub e:\n");
+	bignum_print(e);
+	printf("pub n:\n");
+	bignum_print(n);
+	printf("pub d:\n");
+	bignum_print(d);
+	encodeString(hello,32, &encoded, &encode_len, e, n);
+	decodeString(encoded, encode_len, &decoded, &decode_len, d, n);
+	
+
+
+	printf("Decoded result:\n");
+	printf("%s\n", decoded);
+
+	free(hello);
+
+#endif
+
+}
+
+
+TEST_CASE("BindArchive") {
+	bindArchive();
+}
+
+#ifdef WIN32
+TEST_CASE("test_sqlite") {
+	test_sqlite();
+}
+#endif
+
+std::mutex mtx;
+std::condition_variable cv;
+int cargo = 0;
+
+// 消费者线程.
+void consume(int n)
+{
+	for (int i = 0; i < n; ++i) {
+		std::unique_lock <std::mutex> lck(mtx);
+		cv.wait(lck, [] { return cargo != 0; });
+		printf("consume:%d, cargo:%d\n", i, cargo);
+		cargo = 0;
+		printf("after consume:%d, cargo:%d\n", i, cargo);
+	}
+}
+
+TEST_CASE("test_condition")
+{
+	std::thread consumer_thread(consume, 10); // 消费者线程.
+											  // 主线程为生产者线程, 生产 10 个物品.
+	for (int i = 0; i < 10; ++i) {
+		while ([]{ return cargo != 0; }())
+			std::this_thread::yield();
+		std::unique_lock <std::mutex> lck(mtx);
+		cargo = i + 1;
+
+		printf("main cargo:%d\n",cargo);
+		cv.notify_one();
+	}
+	consumer_thread.join();
+}
+
+
+TEST_CASE("test localtime_r")
+{
+	{
+		std::tm cur = {};
+		//std::istringstream ss("2011-02-18 23:12:34");
+		//ss >> std::get_time(&t, "%Y-%m-%d %H:%M:%S");
+		std::chrono::time_point<std::chrono::system_clock> t1;
+		std::istringstream ss("2011-02-18");
+		ss >> std::get_time(&cur, "%Y-%m-%d");
+		if (ss.fail()) {
+			std::cout << "Parse failed\n";
+		}
+		else {
+
+			time_t c_time_t = std::mktime(&cur);
+			std::cout << std::put_time(&cur, "%Y-%m-%d %H:%M:%S") << " time:" << c_time_t << '\n';
+			t1 = std::chrono::system_clock::from_time_t(c_time_t);
+		}
+
+		auto now = chrono::system_clock::now();
+		CHECK_GT(now, _utility::CDataTime::from_string("2010-10-01 10:10:10", "%Y-%m-%d %H:%M:%S"));
+		CHECK_EQ(t1, _utility::CDataTime::from_string("2011-02-18", "%Y-%m-%d"));
+		CHECK_LT(now, _utility::CDataTime::from_string("2022-10-01", "%Y-%m-%d"));
+		time_t t = time(NULL);
+#ifdef WIN32
+		localtime_s(&cur, &t);
+#else
+		localtime_r(&t, &cur);
+#endif
+
+		auto ret1 = _utility::CDataTime::to_datatime<_utility::TimeType::year>(t);
+		auto ret3 = _utility::CDataTime::to_datatime<_utility::TimeType::month>(t);
+		auto ret4 = _utility::CDataTime::to_datatime<_utility::TimeType::day>(t);
+		auto ret2 = _utility::CDataTime::to_datatime<_utility::TimeType::hour>(t);
+		auto ret5 = _utility::CDataTime::to_datatime<_utility::TimeType::min>(t);
+		auto ret6 = _utility::CDataTime::to_datatime<_utility::TimeType::sec>(t);
+		_utility::CDataTime timer;
+		string result, result1, result2;
+		result = timer.to_string(now, "%Y-%m-%d");
+		auto time_point = std::chrono::system_clock::to_time_t(timer.from_string(result, "%Y-%m-%d"));
+		printf("time %s,%lld \n", result.c_str(), time_point);
+		result1 = timer.to_string(now, "%H:%M:%S");
+		auto time_point1 = std::chrono::system_clock::to_time_t(timer.from_string(result1, "%Y-%m-%d"));
+		printf("time %s,%lld \n", result1.c_str(), time_point1);
+		result2 = timer.to_string(now, "%Y-%m-%d %H:%M:%S");
+		auto time_point2 = std::chrono::system_clock::to_time_t(timer.from_string(result2, "%Y-%m-%d"));
+		printf("time %s,%lld \n", result2.c_str(), time_point2);
+
+
+		printf("111 time %lld,%lld \n", time_point, time_point1 + time_point2);
+		CHECK_EQ(time_point, time_point1 + time_point2);
+		printf("222 time %lld,%lld \n", t, timer.to_time());
+		CHECK_EQ(t, timer.to_time());
+	}
+	//测试localtime多线程date race导致数据不安全
+#ifndef _WIN32
+	test_localtime_r();
+#endif
+}
+
+
+#include <atomic>
+#include <chrono>
+#include <stdio.h>
+#define NUM 5000
+unsigned  long long gCritical = 0;
+
+class _mutex {
+	std::atomic<bool> flag{ false };
+
+public:
+	void lock()
+	{
+		while (flag.exchange(true, std::memory_order_relaxed));
+		std::atomic_thread_fence(std::memory_order_acquire);
+	}
+
+	void unlock()
+	{
+		std::atomic_thread_fence(std::memory_order_release);
+		flag.store(false, std::memory_order_relaxed);
+	}
+};
+_mutex g_atomic_bool;
+
+void test_atomic_bool_lock(int i)
+{
+	while (gCritical < NUM)
+	{
+		g_atomic_bool.lock();
+		gCritical++;
+		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		g_atomic_bool.unlock();
+	}
+}
+
+std::atomic_flag g_lock = ATOMIC_FLAG_INIT;
+std::mutex g_mutex;
+
+void test_atomic_flag_lock(int i)
+{
+	while (gCritical < NUM)
+	{
+		while (g_lock.test_and_set(std::memory_order_acquire))
+		{
+			this_thread::yield();
+		}
+		gCritical++;
+		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		g_lock.clear(std::memory_order_release);
+	}
+}
+
+void test_mutex(int i)
+{
+	while (gCritical < NUM)
+	{
+		std::unique_lock<std::mutex> lock(g_mutex);
+		gCritical++;
+		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+	}
+}
+
+
+
+
+
+TEST_CASE("atomic_and_mutex")
+{
+	//测试原子锁（spin lock）和互斥锁的效率，
+	{
+		gCritical = 0;
+		CDataTime timer;
+		auto start = std::chrono::high_resolution_clock::now();
+		std::vector<std::thread> m_thread;
+		for (int i = 0; i < 10; i++)
+		{
+			m_thread.push_back(std::thread(test_mutex, i));//5012ms
+		}
+		for (auto &th : m_thread)
+		{
+			th.join();
+		}
+		auto end = std::chrono::high_resolution_clock::now();
+		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+		printf("mutex cost time:%lld, %lld\n", interval.count(),timer.elapsed<std::chrono::milliseconds>());
+	}
+
+	{
+		gCritical = 0;
+		CDataTime timer;
+		auto start = std::chrono::high_resolution_clock::now();
+		std::vector<std::thread> m_thread;
+		for (int i = 0; i < 10; i++)
+		{
+			m_thread.push_back(std::thread(test_atomic_flag_lock, i));//4537ms
+		}
+		for (auto &th : m_thread)
+		{
+			th.join();
+		}
+		auto end = std::chrono::high_resolution_clock::now();
+		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+		printf("atomic_flag cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
+	}
+
+	{
+		gCritical = 0;
+		CDataTime timer;
+		auto start = std::chrono::high_resolution_clock::now();
+		std::vector<std::thread> m_thread;
+		for (int i = 0; i < 10; i++)
+		{
+			m_thread.push_back(std::thread(test_atomic_bool_lock, i));//4537ms
+		}
+		for (auto &th : m_thread)
+		{
+			th.join();
+		}
+		auto end = std::chrono::high_resolution_clock::now();
+		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+		printf("atomic bool cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
+	}
+
+}
+
 
 class testA
 {
@@ -276,10 +787,10 @@ struct has_non_serialize_imp{
 	the last expression in the list. It's usually used to verify that the first expression
 	is valid (compilable, think SFINAE), the second is used to specify that decltype should
 	return in case the first expression is valid*/
-	static auto fun(int)->decltype(declval<TT&>().hello(), yes1()) {};
+	static auto fun(int)->decltype(declval<TT&>().hello(), std::true_type()) {};
 	template<class TT>
-	static no1 fun(...) {};
-	static const bool value = std::is_same<decltype(fun<T>(0)), yes1>::value;
+	static std::false_type fun(...) {};
+	static const bool value = std::is_same<decltype(fun<T>(0)), std::true_type>::value;
 };
 
 template <class T>
@@ -377,6 +888,8 @@ TEST_CASE("TRAITS")
 {
 	uint8_t a = 1;
 	using T = decltype(a);
+	printf("Check test0:%d\n",Check<test0>::value);
+	printf("Check test1:%d\n", Check<test1>::value);
 
 	std::stringstream stream;
 	TBinaryArchive wArchive(eSerializeWrite, stream, Serialize_::TBinaryArchive::Options::BigEndian());

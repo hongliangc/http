@@ -10,11 +10,11 @@
 stdarg.h
 -
 
-/home/hongliangc/Dev/test/sqlite3/sdk/include/sqlite3.h
+/home/hongliangc/openSource/test/http/sqlite3/sdk/include/sqlite3.h
 stdarg.h
 -
 
-/home/hongliangc/Dev/test/sqlite3/src/main.cpp
+/home/hongliangc/openSource/test/http/sqlite3/src/main.cpp
 stdio.h
 -
 stdlib.h
@@ -22,7 +22,7 @@ stdlib.h
 string
 -
 ../sdk/include/sqlite3.h
-/home/hongliangc/Dev/test/sqlite3/sdk/include/sqlite3.h
+/home/hongliangc/openSource/test/http/sqlite3/sdk/include/sqlite3.h
 stdio.h
 -
 stdlib.h

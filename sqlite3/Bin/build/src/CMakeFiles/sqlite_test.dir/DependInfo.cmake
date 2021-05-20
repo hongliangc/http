@@ -4,7 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/hongliangc/Dev/test/sqlite3/src/main.cpp" "/home/hongliangc/Dev/test/sqlite3/Bin/build/src/CMakeFiles/sqlite_test.dir/main.cpp.o"
+  "/home/hongliangc/openSource/test/http/sqlite3/src/main.cpp" "/home/hongliangc/openSource/test/http/sqlite3/Bin/build/src/CMakeFiles/sqlite_test.dir/main.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

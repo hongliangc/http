@@ -10,7 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(APP_CONTENT_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 #设定编译器配置和编译选项
-set(CMAKE_TOOLCHAIN_FILE "Toolchain file" CACHE FILEPATH "${APP_CONTENT_PATH}/toolchain.cmake")
+set(CMAKE_TOOLCHAIN_FILE "${APP_CONTENT_PATH}/toolchain.cmake")
+#set(CMAKE_TOOLCHAIN_FILE "Toolchain file" CACHE FILEPATH "${APP_CONTENT_PATH}/toolchain.cmake")
 #set(CMAKE_TOOLCHAIN_FILE "${APP_CONTENT_PATH}/toolchain.cmake")
 
 #项目名称

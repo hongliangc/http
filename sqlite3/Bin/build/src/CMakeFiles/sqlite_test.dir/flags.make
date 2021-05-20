@@ -6,5 +6,5 @@ CXX_FLAGS =  -DEGL_API_FB -std=gnu++11 -w -g -O3 -rdynamic -DNDEBUG  -DLINUX -O3
 
 CXX_DEFINES = -DHAVE_PTHREADS -DLINUX
 
-CXX_INCLUDES = -I/home/hongliangc/Dev/test/sqlite3/sdk/include 
+CXX_INCLUDES = -I/home/hongliangc/openSource/test/http/sqlite3/sdk/include 
 

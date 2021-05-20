@@ -5,41 +5,21 @@
 #include <list>
 #include <numeric>
 #include <future>
+#include <unordered_map>
+#include <typeinfo>
+#include <typeindex>
+#include <functional>
+
 
 #include <stdexcept>
 #include <string>
+#include "utility.h"
+using namespace _utility;
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-// Checks that collections have equal size and all elements are the same
-// template <class T> inline
-// void check_collection(T const & a, T const & b)
-// {
-// 	auto aIter = std::begin(a);
-// 	auto aEnd = std::end(a);
-// 	auto bIter = std::begin(b);
-// 	auto bEnd = std::end(b);
-// 
-// 	CHECK_EQ(std::distance(aIter, aEnd), std::distance(bIter, bEnd));
-// 
-// 	for (; aIter != aEnd; ++aIter, ++bIter)
-// 		CHECK_EQ(*aIter, *bIter);
-// }
-// 
-// template <class T> inline
-// void check_ptr_collection(T const & a, T const & b)
-// {
-// 	auto aIter = std::begin(a);
-// 	auto aEnd = std::end(a);
-// 	auto bIter = std::begin(b);
-// 	auto bEnd = std::end(b);
-// 
-// 	CHECK_EQ(std::distance(aIter, aEnd), std::distance(bIter, bEnd));
-// 
-// 	for (; aIter != aEnd; ++aIter, ++bIter)
-// 		CHECK_EQ(**aIter, **bIter);
-// }
+
 
 void test_future()
 {
@@ -185,7 +165,6 @@ template<typename T>
 class myClass
 {
 	T dummy;
-	/*******/
 public:
 	myClass() {};
 	~myClass() {};
@@ -340,3 +319,172 @@ int test_localtime_r()
 		sleep(100000000);
 }
 #endif
+
+template<class T>
+class TSingleton_
+{
+private:
+	static T &Create()
+	{
+		static T t;
+		(void)instance;
+		return t;
+	}
+public:
+	static T &GetInstance()
+	{
+		return Create();
+	}
+	TSingleton_() = delete;
+	TSingleton_(TSingleton_ &obj) = delete;
+public:
+	static T &instance;
+};
+
+template<class T> T &TSingleton_<T>::instance = TSingleton_<T>::Create();
+
+class CArchiveA{};
+/*!测试类型绑定，CArchiveA类型偏特化后可以绑定任意其它注册的类型T */
+/*! 用于帮助摆脱参数依赖，查找发现潜在的重载*/
+struct tag_ {};
+
+/*!用做instantiate_bind偏特化的返回类型，当编译器寻在instantiate_bind的重载类型时，
+它将被强制实例化这个结构，即使它不是有效的重载*/
+template <class Archive, class T>
+struct bind_support;
+
+/*!函数模板原型*/
+template<class T>
+void instantiate_bind(T*, int/*, tag_*/) {}
+
+/*! CArchiveA的偏特化模板方法*/
+template<class T>
+typename bind_support<CArchiveA, T>::type 
+instantiate_bind(T*, CArchiveA*/*, tag_*/);
+
+/*! 类型绑定*/
+template<class T>
+struct init_bind;
+
+/*每次绑定一个类型 T 就会多个实例化的对象bind2Archive<T> b,
+最终就是会出现多的重载，比如:
+instantiate_bind(bindA*, 0)
+instantiate_bind(bindB*, 0),
+当编译器寻在instantiate_bind的重载类型时，其中的一个偏特化的返回类型是 bind_support<CArchiveA, T>::type，
+bind_support将被强制实例化这个结构，其中的方法必须是virtual才能保障方法被实例化，即使不被调用
+*/
+#define BIND2ARCHIVES(...)											\
+	template<>															\
+    struct init_bind<__VA_ARGS__> {										\
+        static bind2Archive<__VA_ARGS__> const & b;						\
+    };                                                                  \
+    bind2Archive<__VA_ARGS__> const & init_bind<__VA_ARGS__>::b =		\
+        TSingleton_<													\
+            bind2Archive<__VA_ARGS__>									\
+        >::GetInstance().bind();		
+
+
+
+
+
+/*提供类型注册方法，可以绑定到CArchiveA*/
+template<class T>
+struct bind2Archive
+{
+	void bind(std::false_type) const
+	{
+		/*!原始模板类型的第2个参数时int，现在调用第2参数为0总是int类型传递，这将永远是最好的重载，
+		其他重载都是接受指针转换到Archive类型，其优先级低于int*/
+		/*调用的时候需要实例化的参数对象，不能直接使用T*，用nullptr需要转换成实例对象*/
+		instantiate_bind(static_cast<T*>(nullptr) , 0/*, tag_{}*/);
+	}
+	void bind(std::true_type) const {}
+
+	bind2Archive const & bind() const
+	{
+		bind(std::is_abstract<T>{});
+		return *this;
+	}
+};
+
+
+
+/*!存储绑定对象*/
+template<class Archive>
+struct Storage
+{
+	typedef std::function<void()> callback;
+	struct Callback {
+		callback cb;
+	};
+	std::unordered_map<std::type_index, Callback> map;
+};
+
+template<class Archive,class T>
+struct StorageBind
+{
+	StorageBind(){
+		printf("StorageBind*********\n");
+		auto & map = TSingleton_<Storage<Archive> >::GetInstance().map;
+		/*! 通过typeid获取type_info,然后将type_info可以存储在type_index中*/
+		auto key = std::type_index(typeid(T));
+		if (map.find(key) != map.end())
+			return;
+		typename Storage<Archive>::Callback callback;
+		callback.cb = []() {	printf("1111\n"); };
+		map.insert({ std::move(key), std::move(callback) });
+	}
+};
+
+
+template<class Archive, class T>
+struct create_bind
+{
+	static void bind()	{
+		TSingleton_<StorageBind<Archive, T> >::GetInstance();
+	}
+};
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#   define DLL_EXPORT_ __declspec(dllexport)
+#   define USED
+#else // clang or gcc
+#   define DLL_EXPORT_ __attribute__ ((visibility("default")))
+#   define USED __attribute__ ((__used__))
+#endif
+
+//! When specialized, causes the compiler to instantiate its parameter
+template <void(*)()>
+struct instantiate_function_ {};
+
+/*!当编译器寻在instantiate_bind的重载类型时，它将被强制实例化这个结构*/
+template<class Archive, class T>
+struct bind_support
+{
+#if defined(_MSC_VER) && !defined(__clang__)
+	/*!windows下面必须是虚函数才能在pre execute main前实例化*/
+	virtual void /*DLL_EXPORT_*/ instantiate();
+#else // clang or gcc
+	static void /*DLL_EXPORT_*/ instantiate();
+	typedef instantiate_function_<instantiate> unused;
+#endif
+};
+
+/*实例化实现*/
+template<class Archive, class T>
+/*DLL_EXPORT_*/ void bind_support<Archive,T>::instantiate()
+{
+	create_bind<Archive, T>::bind();
+}
+
+
+class bindA {};
+class bindB {};
+BIND2ARCHIVES(bindA)
+BIND2ARCHIVES(bindB)
+
+void bindArchive()
+{
+	auto map = TSingleton_<Storage<CArchiveA> >::GetInstance().map;
+	CHECK_EQ(2, map.size());
+}

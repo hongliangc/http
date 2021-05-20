@@ -2,8 +2,71 @@
 #include <stdio.h>
 #include <string>
 #include <errno.h>
+#include <windows.h>
+#pragma comment(lib,"ws2_32.lib")
 using namespace std;
 
+#if 1
+int main()
+{
+	WSADATA wsaVersion;
+	WSAStartup(0x0202, &wsaVersion);
+	try
+	{
+		//m_sgmwNetwork->connectServer("113.17.111.183", 10004, true);
+		int err = -1;
+		char buff[1024] = { '\0' };
+		sockaddr_in remote_addr, local_addr;
+		size_t s1 = sizeof(remote_addr);
+		size_t s2 = sizeof(local_addr);
+		memset(&remote_addr, 0x00, s1);
+		memset(&local_addr, 0x00, s2);
+		local_addr.sin_port = htons(1122);
+		local_addr.sin_family = AF_INET;
+		local_addr.sin_addr.s_addr = INADDR_ANY;
+
+		remote_addr.sin_port = htons(8888);
+		remote_addr.sin_family = AF_INET;
+		remote_addr.sin_addr.s_addr = inet_addr("10.1.11.203");
+		//创建套接字
+		int cfd = socket(AF_INET, SOCK_STREAM, 0);
+		if (cfd == -1)
+		{
+			printf("socket() failed! syserr:%d %s\n", errno, strerror(errno));
+			err = GetLastError();
+			return -1;
+		}
+		//绑定端口和地址
+		int ivalue = 1;
+		::setsockopt(cfd, SOL_SOCKET, SO_REUSEADDR, (char*)&ivalue, sizeof(ivalue));
+		if (bind(cfd, (struct sockaddr *)&local_addr, s1) == -1)
+		{
+			printf("bind() failed!");
+			err = GetLastError();
+			return -1;
+		}
+		if (connect(cfd, (struct sockaddr *)&remote_addr, s1) == -1)
+		{
+			printf("connect() failed! syserr:%d %s\n", errno, strerror(errno));
+			err = GetLastError();
+			return -1;
+		}
+		sprintf(buff, "client fd:%d\n", cfd);
+		if (send(cfd, buff, strlen(buff), 0) <= 0)
+		{
+			printf("send() failed! syserr:%d %s\n", errno, strerror(errno));
+			err = GetLastError();
+			return -1;
+		}
+	}
+	catch (std::exception &e) // catching by value is OK (smart copying)
+	{
+		cout << "e:" << e.what();
+	}
+	system("pause");
+	return 0;
+}
+#else
 int main()
 {
 	char buff[4096] = { '\0' };
@@ -121,3 +184,4 @@ _parse_header:
 _error:
 	return 0;
 }
+#endif

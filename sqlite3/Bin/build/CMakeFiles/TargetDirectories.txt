@@ -1,5 +1,5 @@
-/home/hongliangc/Dev/test/sqlite3/Bin/build/CMakeFiles/rebuild_cache.dir
-/home/hongliangc/Dev/test/sqlite3/Bin/build/CMakeFiles/edit_cache.dir
-/home/hongliangc/Dev/test/sqlite3/Bin/build/src/CMakeFiles/edit_cache.dir
-/home/hongliangc/Dev/test/sqlite3/Bin/build/src/CMakeFiles/rebuild_cache.dir
-/home/hongliangc/Dev/test/sqlite3/Bin/build/src/CMakeFiles/sqlite_test.dir
+/home/hongliangc/openSource/test/http/sqlite3/Bin/build/CMakeFiles/rebuild_cache.dir
+/home/hongliangc/openSource/test/http/sqlite3/Bin/build/CMakeFiles/edit_cache.dir
+/home/hongliangc/openSource/test/http/sqlite3/Bin/build/src/CMakeFiles/rebuild_cache.dir
+/home/hongliangc/openSource/test/http/sqlite3/Bin/build/src/CMakeFiles/sqlite_test.dir
+/home/hongliangc/openSource/test/http/sqlite3/Bin/build/src/CMakeFiles/edit_cache.dir

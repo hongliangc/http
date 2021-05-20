@@ -1,4 +1,4 @@
-# Install script for directory: /home/hongliangc/Dev/test/sqlite3/src
+# Install script for directory: /home/hongliangc/openSource/test/http/sqlite3/src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

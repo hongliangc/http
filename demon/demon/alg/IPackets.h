@@ -1,5 +1,6 @@
 #pragma once
 #include "TBinarySerialize.h"
+#include "utility.h"
 
 
 using namespace Serialize_;
@@ -76,18 +77,6 @@ uint32_t get_length(T &&head, Args &&... tail) {
 }
 
 
-static string ToHex(const string& s, bool upper_case = true)
-{
-	ostringstream ret;
-	ret << std::hex << std::setfill('0');
-	for (unsigned char c : s)
-		ret << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) << int(c);
-
-	cout << ret.str() << endl;
-	return ret.str();
-}
-
-
 
 class base
 {
@@ -126,10 +115,8 @@ public:
 	template<class Archive>
 	bool Epilogue(Archive &ar)
 	{
-		const std::string data1 = ar.GetSerializeString();
-		ToHex(data1);
 		const std::string data = ar.GetMarkString();
-		ToHex(data);
+		_utility::ToHex(data);
 		if (data.length() <= 3)
 		{
 			printf("Epilogue the length of frame is less than 3!\n");
@@ -146,8 +133,12 @@ public:
 			GetCRC(data);
 			uint8_t lowcrc, highcrc = 0;
 			ar(highcrc, lowcrc, m_suffix);
-			return CheckCRC(lowcrc, highcrc);
-
+			if (!CheckCRC(lowcrc, highcrc))
+			{
+				const std::string raw = ar.GetMarkString();
+				printf("Check CRC failed, TypeId:%d, data:%s!", (uint8_t)m_typeid, _utility::ToHex(raw).c_str());
+				return false;
+			}
 		}
 		return true;
 	}

@@ -7,15 +7,21 @@ cmake_minimum_required(VERSION 2.6)
 #项目名称
 project(alg_test)
 
+
+include_directories(${APP_CONTENT_PATH}/alg/encrypt)
 #附加链接库目录
 #include_directories(${APP_CONTENT_PATH}/sdk/include)
 #link_directories(${APP_CONTENT_PATH}/sdk/lib)
 
 #参与编译的源文件
 aux_source_directory(. ROOT_SRC)
+aux_source_directory(./encrypt EN_SRC)
+aux_source_directory(./encrypt/bn BN_SRC)
 
 set(ALG_SRC
 	${ROOT_SRC}
+	${EN_SRC}
+	${BN_SRC}
 )
 
 #附加编译选项
