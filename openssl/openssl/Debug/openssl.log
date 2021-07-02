@@ -1,7 +1,16 @@
-﻿  stdafx.cpp
-  openssl.cpp
-f:\opensource\test\http\openssl\openssl\openssl.cpp(35): warning C4101: “lisnum”: 未引用的局部变量
-f:\opensource\test\http\openssl\openssl\openssl.cpp(35): warning C4101: “myport”: 未引用的局部变量
-  正在生成代码...
-  openssl.vcxproj -> F:\openSource\test\http\openssl\Debug\openssl.exe
-  openssl.vcxproj -> F:\openSource\test\http\openssl\Debug\openssl.pdb (Full PDB)
+﻿生成启动时间为 2021/6/29 9:04:02。
+     1>项目“E:\openSource_\http\openssl\openssl\openssl.vcxproj”在节点 2 上(Build 个目标)。
+     1>ClCompile:
+         D:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /I..\include /I"C:\Program Files (x86)\Visual Leak Detector\include" /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt openssl.cpp
+         openssl.cpp
+     1>e:\opensource_\http\openssl\openssl\openssl.cpp(42): warning C4101: “lisnum”: 未引用的局部变量
+     1>e:\opensource_\http\openssl\openssl\openssl.cpp(42): warning C4101: “myport”: 未引用的局部变量
+       Link:
+         D:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"E:\openSource_\http\openssl\Debug\openssl.exe" /INCREMENTAL /NOLOGO /LIBPATH:..\lib /LIBPATH:"C:\Program Files (x86)\Visual Leak Detector\lib\Win32" "libcrypto-1_1.lib" "libssl-1_1.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"E:\openSource_\http\openssl\Debug\openssl.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\openSource_\http\openssl\Debug\openssl.lib" /MACHINE:X86 Debug\openssl.obj
+         Debug\stdafx.obj
+         openssl.vcxproj -> E:\openSource_\http\openssl\Debug\openssl.exe
+     1>已完成生成项目“E:\openSource_\http\openssl\openssl\openssl.vcxproj”(Build 个目标)的操作。
+
+已成功生成。
+
+已用时间 00:00:01.13

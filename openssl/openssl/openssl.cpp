@@ -15,12 +15,21 @@
 #include "openssl/err.h"
 #include "openssl/rand.h"
 
+
+#include <thread>
+using namespace std;
+
 #pragma comment(lib, "ws2_32")
 
+#if 0
 #define SERVER_KEY "rsa_keyServer.pem"
 #define SERVER_CER "certServer.cer"
+#else
+#define SERVER_KEY "server.pem"
+#define SERVER_CER "server.crt"
+#endif
 
-#define MAXBUF 1024
+#define MAXBUF (1024+512)
 #define PORT 8080
 int main()
 {
@@ -31,9 +40,8 @@ int main()
 	socklen_t len;
 	struct sockaddr_in my_addr, their_addr;
 	unsigned int myport, lisnum;
-	char buf[MAXBUF + 1];
 	SSL_CTX *ctx;
-	SSL_METHOD *meth = TLSv1_2_server_method();
+	const SSL_METHOD *meth = TLSv1_2_server_method();
 
 	/* SSL 库初始化 */
 	SSL_library_init();
@@ -72,7 +80,7 @@ int main()
 	return(strlen(buf));
 	}
 	*/
-	SSL_CTX_set_default_passwd_cb_userdata(ctx, "123456");
+	//SSL_CTX_set_default_passwd_cb_userdata(ctx, "123456");
 
 
 	/* 检查用户私钥是否正确 */
@@ -94,7 +102,7 @@ int main()
 	my_addr.sin_port = htons(PORT);
 	inet_pton(AF_INET, "127.0.0.1", &my_addr.sin_addr);
 
-	if (bind(sockfd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr))	== -1) {
+	if (::bind(sockfd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr))	== -1) {
 		perror("bind");
 		exit(1);
 	}
@@ -105,12 +113,12 @@ int main()
 	}
 
 	while (1) {
-		SSL *ssl;
 		len = sizeof(struct sockaddr);
 		/* 等待客户端连上来 */
 		if ((new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &len)) == -1) {
 			perror("accept");
-			exit(errno);
+			//exit(errno);
+			continue;
 		}
 		else
 		{
@@ -119,46 +127,54 @@ int main()
 			printf("server: got connection from %s, port %d, socket %d\n", ip, ntohs(their_addr.sin_port), new_fd);
 		}
 
-		/* 基于 ctx 产生一个新的 SSL */
-		ssl = SSL_new(ctx);
-		/* 将连接用户的 socket 加入到 SSL */
-		SSL_set_fd(ssl, new_fd);
-		/* 建立 SSL 连接 */
-		if (SSL_accept(ssl) == -1) {
-			perror("accept");
-			closesocket(new_fd);
-			break;
-		}
+		std::thread([ctx, new_fd]() {
+			{
+				int fd = new_fd;
+				socklen_t len;
+				char buf[MAXBUF + 1] = {'\0'};
+				SSL *ssl;
+				/* 基于 ctx 产生一个新的 SSL */
+				ssl = SSL_new(ctx);
+				/* 将连接用户的 socket 加入到 SSL */
+				SSL_set_fd(ssl, fd);
+				/* 建立 SSL 连接 */
+				if (SSL_accept(ssl) == -1) {
+					perror("accept");
+					closesocket(fd);
+					goto finish;
+				}
+				do 
+				{
+					/* 开始处理每个新连接上的数据收发 */
+					memset(buf, 0xFF, MAXBUF);
+					/* 发消息给客户端 */
+					len = SSL_write(ssl, buf, strlen(buf));
 
-		/* 开始处理每个新连接上的数据收发 */
-		memset(buf, 0x00, MAXBUF + 1);
-		memcpy(buf, "server->client",strlen("server->client"));
-		/* 发消息给客户端 */
-		len = SSL_write(ssl, buf, strlen(buf));
+					if (len <= 0) {
+						printf("SSL_write failed, error:%d！\n", GetLastError());
+						goto finish;
+					}
+					else
+						printf("SSL_write success len:%d！\n", len);
 
-		if (len <= 0) {
-			printf("消息'%s'发送失败！错误代码是%d\n",	buf, errno);
-			goto finish;
-		}
-		else
-			printf("消息'%s'发送成功，共发送了%d个字节！\n",buf, len);
-
-		memset(buf, 0x00, MAXBUF + 1);
-		/* 接收客户端的消息 */
-		len = SSL_read(ssl, buf, MAXBUF + 1);
-		if (len > 0)
-			printf("接收消息成功:'%s'，共%d个字节的数据\n",
-				buf, len);
-		else
-			printf("消息接收失败！错误代码是%d\n",errno);
-		/* 处理每个新连接上的数据收发结束 */
-	finish:
-		/* 关闭 SSL 连接 */
-		SSL_shutdown(ssl);
-		/* 释放 SSL */
-		SSL_free(ssl);
-		/* 关闭 socket */
-		closesocket(new_fd);
+					memset(buf, 0x00, MAXBUF + 1);
+					/* 接收客户端的消息 */
+					len = SSL_read(ssl, buf, MAXBUF + 1);
+					if (len > 0)
+						printf("SSL_read success len:%d！", len);
+					else
+						printf("SSL_read failed, error:%d！\n", GetLastError());
+					/* 处理每个新连接上的数据收发结束 */
+				} while (1);
+			finish:
+				/* 关闭 SSL 连接 */
+				SSL_shutdown(ssl);
+				/* 释放 SSL */
+				SSL_free(ssl);
+				/* 关闭 socket */
+				closesocket(fd);
+			}
+		}).detach();
 	}
 
 	/* 关闭监听的 socket */

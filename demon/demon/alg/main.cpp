@@ -2,6 +2,11 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
+
+#include <random>
+#include <memory>
+#include <functional>
+
 #include <stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -35,6 +40,110 @@ extern "C" {
 #include "TBinarySerialize.h"
 using namespace Serialize_;
 using namespace std;
+
+
+
+template <typename FunctionT>
+struct Coentry
+{
+	static void coentry(void * arg)
+	{
+		// Is this safe?
+		FunctionT * function = reinterpret_cast<FunctionT *>(arg);
+
+		(*function)();
+	}
+
+	static void invoke(FunctionT function)
+	{
+		coentry(reinterpret_cast<void *>(&function));
+	}
+};
+
+template <typename FunctionT>
+void coentry(FunctionT function)
+{
+	Coentry<FunctionT>::invoke(function);
+}
+
+TEST_CASE("Lambda_convert_void")
+{
+	int value = 1;
+	auto f = [&] {
+		std::cerr << "Hello World! value:" << ++value << std::endl;
+	};
+
+	coentry(f);
+	printf("Lambda_convert_void value:%d\n", value);
+}
+
+
+
+void f(int n1, int n2, int n3, const int& n4, int n5)
+{
+	std::cout << n1 << ' ' << n2 << ' ' << n3 << ' ' << n4 << ' ' << n5 << '\n';
+}
+
+int g(int n1)
+{
+	return n1;
+}
+
+struct Foo {
+	void print_sum(int n1, int n2)
+	{
+		std::cout << n1 + n2 << '\n';
+	}
+	int data = 10;
+};
+
+TEST_CASE("bind")
+{
+	using namespace std::placeholders;  // for _1, _2, _3...
+
+	std::cout << "demonstrates argument reordering and pass-by-reference:\n";
+	int n = 7;
+	// (_1 and _2 are from std::placeholders, and represent future
+	// arguments that will be passed to f1)
+	auto f1 = std::bind(f, _2, 42, _1, std::cref(n), n);
+	n = 10;
+	f1(1, 2, 1001); // 1 is bound by _1, 2 is bound by _2, 1001 is unused
+					// makes a call to f(2, 42, 1, n, 7)
+
+	std::cout << "achieving the same effect using a lambda:\n";
+	auto lambda = [ncref = std::cref(n), n = n](auto a, auto b, auto /*unused*/) {
+		f(b, 42, a, ncref, n);
+	};
+	lambda(1, 2, 1001); // same as a call to f1(1, 2, 1001)
+
+	std::cout << "nested bind subexpressions share the placeholders:\n";
+	auto f2 = std::bind(f, _3, std::bind(g, _3), _3, 4, 5);
+	f2(10, 11, 12); // makes a call to f(12, g(12), 12, 4, 5);
+
+	std::cout << "common use case: binding a RNG with a distribution:\n";
+	std::default_random_engine e;
+	std::uniform_int_distribution<> d(0, 10);
+	auto rnd = std::bind(d, e); // a copy of e is stored in rnd
+	for (int n = 0; n < 10; ++n)
+		std::cout << rnd() << ' ';
+	std::cout << '\n';
+
+	std::cout << "bind to a pointer to member function:\n";
+	Foo foo;
+	auto f3 = std::bind(&Foo::print_sum, &foo, 95, _1);
+	f3(5);
+
+	std::cout << "bind to a pointer to data member:\n";
+	auto f4 = std::bind(&Foo::data, _1);
+	std::cout << f4(foo) << '\n';
+
+	std::cout << "use smart pointers to call members of the referenced objects:\n";
+	std::cout << f4(std::make_shared<Foo>(foo)) << ' '
+		<< f4(std::make_unique<Foo>(foo)) << '\n';
+}
+
+
+
 
 #define SGMW_PUBKEY 1
 TEST_CASE("OPENSSL_RSA")
@@ -421,7 +530,7 @@ TEST_CASE("test localtime_r")
 #include <atomic>
 #include <chrono>
 #include <stdio.h>
-#define NUM 5000
+#define NUM 500000
 unsigned  long long gCritical = 0;
 
 class _mutex {
@@ -440,8 +549,8 @@ public:
 		flag.store(false, std::memory_order_relaxed);
 	}
 };
-_mutex g_atomic_bool;
 
+_mutex g_atomic_bool;
 void test_atomic_bool_lock(int i)
 {
 	while (gCritical < NUM)
@@ -452,6 +561,21 @@ void test_atomic_bool_lock(int i)
 		g_atomic_bool.unlock();
 	}
 }
+
+std::atomic<bool> g_flag{ false };
+void test_atomic_bool_lock_(int i)
+{
+	while (gCritical < NUM)
+	{
+		while (g_flag.exchange(true, std::memory_order_relaxed));
+		std::atomic_thread_fence(std::memory_order_acquire);
+		gCritical++;
+		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		std::atomic_thread_fence(std::memory_order_release);
+		g_flag.store(false, std::memory_order_relaxed);
+	}
+}
+
 
 std::atomic_flag g_lock = ATOMIC_FLAG_INIT;
 std::mutex g_mutex;
@@ -538,7 +662,27 @@ TEST_CASE("atomic_and_mutex")
 		}
 		auto end = std::chrono::high_resolution_clock::now();
 		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-		printf("atomic bool cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
+		printf("atomic_bool 1 cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
+	}
+
+
+
+	{
+		gCritical = 0;
+		CDataTime timer;
+		auto start = std::chrono::high_resolution_clock::now();
+		std::vector<std::thread> m_thread;
+		for (int i = 0; i < 10; i++)
+		{
+			m_thread.push_back(std::thread(test_atomic_bool_lock_, i));//4537ms
+		}
+		for (auto &th : m_thread)
+		{
+			th.join();
+		}
+		auto end = std::chrono::high_resolution_clock::now();
+		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+		printf("atomic_bool 2 cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
 	}
 
 }
@@ -1217,7 +1361,8 @@ template< typename t >
 /* "t &&" with "t" being template param is special, and  adjusts "t" to be
 (for example) "int &" or non-ref "int" so std::forward knows what to do. */
 void forwarding(t && arg) {
-	type_name<decltype(declval<t>())>();
+	//type_name<decltype(declval<t>())>();
+	type_name<decltype(arg)>();
 	std::cout << "via std::forward: ";
 	//转发需要在模板T&& 下使用，否则返回值是rvalue
 	overloaded(std::forward< t >(arg));
@@ -1255,8 +1400,11 @@ TEST_CASE("Reference_collapsing")
 	auto ret1 = std::is_same< int &, decltype((i)) >::value;
 	//xvalue
 	auto ret2 = std::is_same< int &&, decltype(std::move(i))>::value;
-	//if T is prvalue, decltype return T
+	//if T is prvalue, decltype return T(纯右值直接返回本身类型)
 	auto ret3 = std::is_same< int &&, decltype(5)>::value;
+	auto ret3_0 = std::is_same< int, decltype(5)>::value;
+	//std::foward会将右值转化为左值
+	auto ret3_1 = std::is_same< int &&, decltype(std::forward<int>(5))>::value;
 	overloaded(i);
 	overloaded(std::forward<int>(i));
 	overloaded(std::forward<int>(5));
@@ -1275,8 +1423,60 @@ TEST_CASE("Reference_collapsing")
 	std::cout << type_name<decltype(std::declval<int>())>() << '\n';
 	std::cout << type_name<decltype(std::declval<int&>())>() << '\n';
 	std::cout << type_name<decltype(std::declval<int&&>())>() << '\n';
+	std::cout << type_name<decltype(5)>() << '\n';
+	std::cout << type_name<decltype(std::declval<decltype(5)>())>() << '\n';
+	std::cout << type_name<decltype(std::move<int>(5))>() << '\n';
+	std::cout << type_name<decltype(std::move<int&>(i))>() << '\n';
+	std::cout << type_name<decltype(std::move(i))>() << '\n';
 	printf("Reference_collapsing OK\n");
 }
+
+
+template<typename ...Args>
+void funA(std::tuple<Args...> &&args){}
+
+template<typename T>
+void funB(T&& t)
+{
+	/*!std::decay_t 将左值转化为原始类型,通过std::forward转发变成右值*/
+	funA(std::forward<std::decay_t<T>>(t));
+}
+
+template<typename T>
+void funC(T&& t)
+{
+	/*!std::move 将左值转化为右值应用*/
+	funA(std::move<T>(t));
+}
+
+/*
+If you use decay and pass in an rvalue to funkb, then decay does nothing as the type is already "decayed" (i.e. it's T).
+If you pass in an lvalue however, then the type of the forwarding reference is T&, and when you decay that, you get T. This means that the result of std::forward will be an rvalue in both cases.
+Now the code is not valid without decay because funka takes a rvalue reference, and you pass an lvalue to funkb which you then forward (preserving the value category). You're basically doing
+
+int a;
+int&& b = a;
+As you can see, with decay, you will always get an rvalue, which can bind to a rvalue reference.
+*/
+TEST_CASE("Decay")
+{
+	auto tup = std::tuple<int, int>(1, 2);
+	funB(tup);
+	funC(tup);
+
+	std::vector<int> bar;
+	for (int i = 0; i < 10; ++i) {
+		bar.push_back(i);
+	}
+	bar.reserve(20);   // this is the only difference with foo above
+	std::cout << "making bar grow:\n";
+
+}
+
+
+
+
+
 /*//Some C standard library functions are not guaranteed to be reentrant with respect to threads.
 Functions such as strtok() and asctime() return a pointer to the result stored in function-allocated memory on a per-process basis.
 Other functions such as rand() store state information in function-allocated memory on a per-process basis.
@@ -1317,6 +1517,7 @@ TEST_CASE("DATA_RACES")
 		cout << "after2 t1 tm:" << asctime(t1_tm) << endl;
 	}
 }
+
 
 
 #if 0

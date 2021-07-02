@@ -26,11 +26,20 @@ void ShowCerts(SSL * ssl)
 		printf("数字证书信息:\n");
 		line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
 		printf("证书: %s\n", line);
-		free(line);
+		OPENSSL_free(line);
 		line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
 		printf("颁发者: %s\n", line);
-		free(line);
+		OPENSSL_free(line);
 		X509_free(cert);
+
+
+		//char *subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
+		//char *issuer = X509_NAME_oneline(X509_get_issuer_name(cert), NULL, 0);
+		//printf("Subject: %s\n", subj);
+		//printf("Issuer: %s\n", issuer);
+		//OPENSSL_free(subj);
+		//OPENSSL_free(issuer);
+		//X509_free(cert);
 	}
 	else
 		printf("无证书信息！\n");
