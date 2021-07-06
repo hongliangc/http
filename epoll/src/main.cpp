@@ -6,7 +6,28 @@
 #include "tls_protocol.h"
 using namespace std;
 
+class Worker
+{
+public:
+	Worker() {
+	}
 
+	void HandleRead() { 
+
+	}
+	void HandleWrite() { 
+
+	}
+	void HandleConnect() {
+
+	}
+	void HandleError() {
+
+	}
+
+
+
+};
 
 int main()
 {
