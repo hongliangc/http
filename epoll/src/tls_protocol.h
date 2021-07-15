@@ -6,6 +6,10 @@ extern "C" {
 #include "openssl/err.h"
 }
 #include <errno.h>
+#include <sstream>
+#include <iostream>
+#include <thread>
+using namespace std;
 
 #ifdef _WIN32
 #define Errno_ GetLastError()
@@ -67,11 +71,13 @@ namespace tls {
 #define MaxClient 1024
 	class Epoll
 	{
+#if 0
 		using CallBack_ = std::function<void()>;
 		typedef struct tagEventData {
 			int fd;
 			CallBack_ callback;
 		}EventData, *LPEventData;
+#endif
 	public:
 		Epoll()
 		{
@@ -92,7 +98,7 @@ namespace tls {
 				return false;
 			}
 			m_status = true;
-			m_thread = std::make_unique<std::thread>([this]() { RunTask(); });
+			//m_thread = std::make_unique<std::thread>([this]() { RunTask(); });
 			return true;
 		}
 
@@ -108,26 +114,30 @@ namespace tls {
 			}
 		}
 
-		int32_t Insert(int32_t fd, uint32_t events, CallBack_ fun)
+		int32_t Insert(int32_t fd, struct epoll_event &ev)
 		{
+#if 0
 			struct epoll_event ev;
 			ev.events = events/*EPOLLIN | EPOLLET | EPOLLRDHUP*/;
 			EventData data;
 			data.fd = fd;
 			data.callback = fun;
 			ev.data.ptr = reinterpret_cast<void *>(&data);
+#endif
 			epoll_ctl(m_fd, EPOLL_CTL_ADD, fd, &ev);
 			return 0;
 		}
 
-		int32_t Modify(int32_t fd, uint32_t events, CallBack_ fun)
+		int32_t Modify(int32_t fd, struct epoll_event &ev)
 		{
+#if 0
 			struct epoll_event ev;
 			ev.events = events/*EPOLLIN | EPOLLET | EPOLLRDHUP*/;
 			EventData data;
 			data.fd = fd;
 			data.callback = fun;
 			ev.data.ptr = reinterpret_cast<void *>(&data);
+#endif
 			epoll_ctl(m_fd, EPOLL_CTL_ADD, fd, &ev);
 			return 0;
 		}
@@ -138,11 +148,11 @@ namespace tls {
 			return 0;
 		}
 
-		INT32 WaitEvent(struct epoll_event *EventSet, int count, uint32_t milliseconds)
+		int32_t WaitEvent(struct epoll_event *EventSet, int count, uint32_t milliseconds)
 		{
 			return epoll_wait(m_fd, EventSet, count, milliseconds);			
 		}
-
+#if 0
 		void RunTask()
 		{
 			struct epoll_event EventSet[MaxClient];
@@ -180,6 +190,8 @@ namespace tls {
 			}
 			close(m_fd);
 		}
+#endif
+
 	public:
 		bool m_status;
 		int32_t m_fd;
@@ -188,35 +200,169 @@ namespace tls {
 
 	class TaskQueue
 	{
-
+	public:
+		using callback_ = std::function<void()>;
+	public:
+		TaskQueue() = default;
+		virtual ~TaskQueue() = default;
+		virtual int32_t Enqueue(callback_ cb) = 0;
+		virtual int32_t Shutdown() = 0;
 	};
 
-	template<typename T>
-	class Channel
+
+#ifndef _THREAD_POOL_COUNT
+// #define _THREAD_POOL_COUNT   \
+//   ((std::max)(1u, std::thread::hardware_concurrency() - 1))
+#define	_THREAD_POOL_COUNT 10
+#endif
+	class ThreadPool:public TaskQueue
 	{
 	public:
-		std::function<void(char*, int)> read_;
-		std::function<void(char*, int)> write_;
-		std::function<void()> connect_;
-		std::function<void(int)> error_;
-		T m_proxy;
-		socket_ m_sock;
+		explicit ThreadPool(unsigned int num = _THREAD_POOL_COUNT):m_status(true){
+			for (; num > 0; num--){
+				m_threads.emplace_back(worker(this, num));
+			}
+		}
+		ThreadPool(const ThreadPool&) = delete;
+
+		int32_t Enqueue(callback_ cb) override{
+			std::unique_lock<std::mutex> lock(mutex);
+			m_jobs.emplace_back(cb);
+			_LOG(logTypeCommon, "worker Enqueue size:%d", m_jobs.size());
+			m_cond.notify_one();
+			return 0;
+		}
+		int32_t Shutdown() override {
+			{
+				std::unique_lock<std::mutex> lock(mutex);
+				m_status = false;
+			}
+			m_cond.notify_all();
+			for (auto &e: m_threads)
+			{
+				e.join();
+			}
+			return 0;
+		}
+	private:
+		struct worker {
+			explicit worker(ThreadPool *pool,int id) :m_pool(pool),m_id(id) {}
+			void operator()() {
+				//std::stringstream ss;
+				//ss << std::this_thread::get_id();
+				//uint64_t id = std::stoull(ss.str());
+				do {
+					//TaskQueue::callback_ fn;
+					{
+						//_LOG(logTypeCommon, "worker id:%lld be ready ", id);
+						std::unique_lock<std::mutex> lock(m_pool->m_mutex);
+						m_pool->m_cond.wait(lock, [&] { return (m_pool->m_jobs.size() != 0) || m_pool->m_status == false; });
+						if (m_pool->m_status == false && m_pool->m_jobs.size() == 0) {
+							_LOG(logTypeCommon, "worker id:%d quit", m_id);
+							break;
+						}
+						_LOG(logTypeCommon, "worker id:%d ready to call cb, size:%d", m_id, m_pool->m_jobs.size());
+						//if (m_pool->m_jobs.size() == 0)
+						//{
+						//	continue;
+						//}
+						//fn = std::move(m_pool->m_jobs.front());
+						m_pool->m_jobs.front()();
+						m_pool->m_jobs.pop_front();
+					}
+					//fn(); 
+					_LOG(logTypeCommon, "worker id:%d fininsh, size:%d", m_id, m_pool->m_jobs.size());
+				} while (true);
+			}
+		public:
+			int m_id;
+			ThreadPool *m_pool;
+		};
+	private:
+		bool m_status;
+		std::mutex m_mutex;
+		std::condition_variable m_cond;
+		std::vector<std::thread> m_threads;
+		std::list<callback_> m_jobs;
+		friend struct worker;
+	};
+
+
+
+	template<typename Proxy>
+	class Channel
+	{
+#if 0
 	public:
-		Channel() {
-			read_ = std::bind(&T::HandleRead, &m_proxy);
-			write_ = std::bind(&T::HandleWrite, &m_proxy);
-			connect_ = std::bind(&T::HandleConnect, &m_proxy);
-			error_ = std::bind(&T::HandleError, &m_proxy);
+		template<typename, typename T>
+		struct has_member_fun {
+			assert_static(std::integral_constant<T, false>, "Second template parameter needs to be of function type.");
+		};
+
+		template<typename T, typename Ret, typename ...Args>
+		struct has_member_fun <T, Ret(Args...)> {
+			template<typename T_>
+			static auto test(T_*)->decltype(declval<T_>().SetRead(std::declval(Args)()... args), std::true_type);
+			template<typename>
+			static std::false_type std::test(...);
+
+			static const bool value = std::is_same<decltype(test<T>(0)), std::true_type>::value;
+		};
+#endif
+
+	public:
+		/*!注册读写事件,隔离应用层和底层读写接口*/
+		std::function<int(int, char*, int)> m_read;
+		std::function<int(int, char*, int)> m_write;
+
+		Proxy m_proxy;
+		socket_ m_sock;
+		std::shared_ptr<SSL> m_ssl;
+	public:
+		explicit Channel(
+			std::function<int(int, char*, int)> read,
+			std::function<int(int, char*, int)> write):
+			m_read(read),m_write(write){
 		}
 
-		void SetRead()
+		bool Initialize()
+		{
+			//static_assert(std::is_member_function_pointer<decltype(&Proxy::Register)>::value, "T::Register is not a member function.");
+			m_proxy.Register(
+				std::bind(&Channel<Proxy>::HandleRead, this, std::placeholders::_1, std::placeholders::_2), 
+				std::bind(&Channel<Proxy>::HandleWrite, this, std::placeholders::_1, std::placeholders::_2));
 
-			void HandleRead(char* buffer, int len) { if (read_) { read_(); } }
-		void HandleWrite(char*, int) { if (write_) { write_(); } }
-		void HandleConnect() { if (connect_) { connect_(); } }
-		void HandleError(int err) { if (error_) { error_(); } }
+#if 0
+			m_error = std::bind(&Proxy::OnError, &m_proxy, std::placeholders::_1);
+			//m_error = [&m_proxy](int err) { OnErr(err); };
+			//std::function<void(int)> fn = std::bind(&Proxy::OnErr, &m_proxy, std::placeholders::_1);
+			auto fn1 = std::bind(&Channel<Proxy>::HandleWrite, this, std::placeholders::_1, std::placeholders::_2);
+			printf("HandleWrite name:%s\n", typeid(fn1).name());
 
+			auto fn = std::bind(&Proxy::OnErr, &m_proxy, std::placeholders::_1);
+			printf("OnErr name:%s\n", typeid(fn).name());
+			m_message = std::bind(&Proxy::OnMessage, &m_proxy);
+#endif
+			return true;
+		}
 
+		/*!读写回调给代理*/
+		int HandleRead(char* buffer, int len) {
+			if (m_read) { return m_read(m_sock, buffer, len); }
+			else { return -1; }
+		}
+		int HandleWrite(char* buffer, int len) {
+			if (m_write) { return m_write(m_sock, buffer, len); }
+			else { return -1; }
+		}
+
+		/*!客户端事件处理*/
+		void OnMessage(){ 
+			m_proxy.OnMessage();
+		}
+		void OnError(int err) { 
+			m_proxy.OnError(err);
+		}
 
 	};
 
@@ -499,7 +645,7 @@ namespace tls {
 					if (m_listData.size() > 0)
 					{
 						std::unique_lock<std::mutex> lock(m_mutex);
-						_LOG(logTypeCommon, "CSSLClient SSL_write m_listData size:%d", m_listData.size());
+						//_LOG(logTypeCommon, "CSSLClient SSL_write m_listData size:%d", m_listData.size());
 						for (auto iter = m_listData.begin(); iter != m_listData.end(); )
 						{
 							StruSslData *data = (*iter).get();
@@ -531,7 +677,7 @@ namespace tls {
 							if (offset == data->m_len)
 							{
 								iter = m_listData.erase(iter);
-								_LOG(logTypeCommon, "CSSLClient SSL_write success len:%d", offset);
+								_LOG(logTypeCommon, "CSSLClient SSL_write fd:%d, success len:%d", m_sock, offset);
 							}
 						}
 					}
@@ -643,14 +789,19 @@ namespace tls {
 							timeval tv;
 							tv.tv_sec = static_cast<long>(sec);
 							tv.tv_usec = static_cast<decltype(tv.tv_usec)>(usec);
-
-							if (select(static_cast<int>(sock + 1), &fdsr, &fdsw, &fdse, &tv) > 0 &&
-								(FD_ISSET(sock, &fdsr) || FD_ISSET(sock, &fdsw))) {
+							int ret = select(static_cast<int>(sock + 1), &fdsr, &fdsw, &fdse, &tv);
+							if ((ret > 0) &&	(FD_ISSET(sock, &fdsr) || FD_ISSET(sock, &fdsw))) {
 								int error = 0;
 								socklen_t len = sizeof(error);
 								return getsockopt(sock, SOL_SOCKET, SO_ERROR,
 									reinterpret_cast<char *>(&error), &len) >= 0 &&
 									!error;
+							}
+							else if(ret == 0) {
+								_LOG(logTypeCommon, "connect select timeout!");
+							}
+							else{
+								_LOG(logTypeCommon, "connect select error:%d!", Errno_);
 							}
 							return false;
 						};
@@ -740,21 +891,21 @@ namespace tls {
 		UniqueSslPtr m_ssl;
 	};
 
+
+
+
 	template<typename T>
 	class CSSLServer :public ISSLSession
 	{
 		using CallBack = std::function<void()>;
 	private:
 		Epoll m_epoll;
-
-		typedef struct tagChannelData {
-			std::shared_ptr<T> m_channel;
-			std::shared_ptr<SSL> m_ssl;
-		}ChannelData, *LPChannelData;
-
-		std::map<int, ChannelData> m_clientset;
+		
+		std::map<int, std::shared_ptr<T>> m_clientset;
 	public:
-		CSSLServer(std::string host, uint32_t port) :ISSLSession(host, port) {}
+		CSSLServer(std::string host, uint32_t port) :ISSLSession(host, port) {
+			m_epoll.Initialize();
+		}
 		~CSSLServer() { }
 
 		void RunTask()
@@ -762,6 +913,7 @@ namespace tls {
 			//set_nonblock(m_sock, true);
 			try
 			{
+				std::unique_ptr<TaskQueue> task_queue(new ThreadPool());
 				struct sockaddr_in remote_addr;
 				while (m_status)
 				{
@@ -867,6 +1019,7 @@ namespace tls {
 					//this_thread::sleep_for(std::chrono::seconds(1));
 
 #else
+#if 0
 					socklen_t len = sizeof(struct sockaddr_in);
 					int efd = epoll_create(15);
 					if (efd == -1)
@@ -1022,9 +1175,50 @@ namespace tls {
 						}
 					}
 					close(efd);
-#endif
-				}
 
+#endif
+#endif
+					struct epoll_event events[MaxClient];
+					memset(events, 0, MaxClient * sizeof(struct epoll_event));
+					int ready_num = 0;
+					while (m_status) {
+						ready_num = m_epoll.WaitEvent(events, MaxClient, 1000);
+						//_LOG(logTypeCommon, "CSSLServer trigger Events num:%d", ready_num);
+						if (ready_num > 0) {
+							for (int i = 0; i < ready_num; ++i) {
+								int fd = events[i].data.fd;
+								if (events[i].events & EPOLLRDHUP) {
+									_LOG(logTypeCommon, "CSSLServer socket:%d closed", fd);
+									m_epoll.Remove(fd);
+									auto iter = m_clientset.find(fd);
+									m_clientset.erase(iter);
+									continue;
+								}
+								if (events[i].events & EPOLLIN) {
+									if (fd == m_sock)
+									{
+										HandleConn();
+									}
+									else
+									{
+										_LOG(logTypeCommon, "CSSLServer push requst to queue fd:%d", fd);
+										auto iter = m_clientset.find(fd);
+										if (iter == m_clientset.end())
+										{
+											_LOG(logTypeCommon, "CSSLServer HandleWrite not find ssl");
+											continue;
+										}
+										T* channel = iter->second.get();
+										task_queue->Enqueue([channel]() {
+											//_LOG(logTypeCommon, "TaskQueue channel:0x%0x, fd:%d", channel,channel->m_sock);
+											channel->OnMessage(); 
+										});
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 			catch (const std::exception& e)
 			{
@@ -1098,39 +1292,46 @@ namespace tls {
 				return false;
 			}
 
-			if (m_epoll.Initialize())
+			if (!m_epoll.Initialize())
 			{
 				_LOG(logTypeCommon, "CSSLServer Epoll initialize failed!");
 				closesocket(m_sock);
 				return false;
 			}
 
-			m_epoll.Insert(m_sock, EPOLLIN | EPOLLET | EPOLLRDHUP, HandleConn);
+
+
+			struct epoll_event ev;
+			ev.events = EPOLLIN /*| EPOLLET */| EPOLLRDHUP;
+			ev.data.fd = m_sock;
+
+			m_epoll.Insert(m_sock, ev);
 
 			m_status = true;
-			//std::thread([this]() { RunTask(); }).detach();
+			std::thread([this]() { RunTask(); }).detach();
 			return  true;
 		}
 
 		int HandleRead(int sock, char *buffer, int buflen)
 		{
-			if (sock == INVALID_SOCKET || buffer == NULL || len == 0)
+			if (sock == INVALID_SOCKET || buffer == NULL || buflen == 0)
 			{
-				_LOG(logTypeCommon, "CSSLServer OnRead parame");
-				return 0;
-			}
-			//auto iter = std::find_if(m_clientset.begin(), m_clientset, end(), [sock](decltype(*m_clientset.begin()) & vt) {	return vt.first == sock; })
-			auto iter = m_clientset.find(sock);
-			if (iter == m_clientset.end() && iter->second.m_ssl != nullptr)
-			{
-				_LOG(logTypeCommon, "CSSLServer HandleRead not find ssl");
+				_LOG(logTypeCommon, "CSSLServer HandleRead param error!");
 				return -1;
 			}
-			/*!需要设置为非阻塞,否则会阻塞*/
-			int len = SSL_read(iter->second.m_ssl.get(), buffer, buflen);
-			if (len > 0)
+			auto iter = m_clientset.find(sock);
+			if (iter == m_clientset.end())
 			{
-				_LOG(logTypeCommon, "CSSLServer HandleRead len:%d", len);
+				_LOG(logTypeCommon, "CSSLServer HandleRead not find key");
+				return -1;
+			}
+			T* channel = iter->second.get();
+			/*!需要设置为非阻塞,否则会阻塞*/
+			int len = SSL_read(channel->m_ssl.get(), buffer, buflen);
+			if (len < 0 && TryAgain(Errno_) != true)
+			{
+				_LOG(logTypeCommon, "CSSLServer HandleRead err:%d",Errno_);
+				return -1;
 			}
 			return len;
 		}
@@ -1138,25 +1339,26 @@ namespace tls {
 
 		int HandleWrite(int sock, char *buffer, int buflen)
 		{
-			if (sock == INVALID_SOCKET || buffer == NULL || len == 0)
+			if (sock == INVALID_SOCKET || buffer == NULL || buflen == 0)
 			{
-				_LOG(logTypeCommon, "CSSLServer OnRead parame");
+				_LOG(logTypeCommon, "CSSLServer HandleRead param error!");
 				return 0;
 			}
 			auto iter = m_clientset.find(sock);
-			if (iter == m_clientset.end() && iter->second.m_ssl != nullptr)
+			if (iter == m_clientset.end())
 			{
-				_LOG(logTypeCommon, "CSSLServer HandleWrite not find ssl");
+				_LOG(logTypeCommon, "CSSLServer HandleRead not find key");
 				return -1;
 			}
-
+			T* channel = iter->second.get();
 			/*!需要设置为非阻塞,否则会阻塞*/
-			int len = SSL_write(ssl, buffer, buflen);
-			if (len > 0)
+			int len = SSL_write(channel->m_ssl.get(), buffer, buflen);
+			if (len < 0 && TryAgain(Errno_) != true)
 			{
-				_LOG(logTypeCommon, "CSSLServer HandleWrite len:%d", len);
+				_LOG(logTypeCommon, "CSSLServer HandleWrite err:%d", Errno_);
+				return -1;
 			}
-			return received;
+			return len;
 		}
 
 		void HandleConn()
@@ -1172,7 +1374,7 @@ namespace tls {
 
 			char ip[32] = { 0 };
 			inet_ntop(AF_INET, &remote_addr.sin_addr, ip, sizeof(ip));
-			_LOG(logTypeCommon, "CSSLServer client %s:%d, socket %d\n", ip, ntohs(remote_addr.sin_port), sock);
+			//_LOG(logTypeCommon, "CSSLServer client %s:%d, socket %d\n", ip, ntohs(remote_addr.sin_port), sock);
 
 			auto ssl = shared_ptr<SSL>(SSL_new(m_ctx.get()), [](SSL *_p) {
 				SSL_shutdown(_p);
@@ -1200,13 +1402,38 @@ namespace tls {
 			}
 
 			/*!添加新连接*/
-			ChannelData data;
-			data.m_channel = std::make_shared<T>();
-			data.m_ssl = ssl;
-			m_clientset[sock] = data;
+#if 0
+			shared_ptr<T> channel = std::make_shared<T>(
+				[this](int sock, char *buffer, int buflen) {
+				this->HandleRead(sock, buffer, buflen);
+			},
+				[this](int sock, char *buffer, int buflen) {
+				this->HandleWrite(sock, buffer, buflen);
+			});
+#else
+			shared_ptr<T> channel = std::make_shared<T>(
+			std::bind(&tls::CSSLServer<T>::HandleRead,this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+			std::bind(&tls::CSSLServer<T>::HandleWrite, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+#endif
+			if (channel->Initialize() == false)
+			{
+				_LOG(logTypeCommon, "CSSLServer channel initialize failed!");
+				closesocket(sock);
+				return;
+			}
+			channel->m_ssl = ssl;
+			channel->m_sock = sock;
+
+			m_clientset[sock] = channel;
 			set_nonblock(sock, true);
-			m_epoll.Insert(m_sock, EPOLLIN | EPOLLET | EPOLLRDHUP, &(std::bind(&T::HandleRead, data.m_channel.get())));
-			_LOG(logTypeCommon, "CSSLServer client connected success!");
+
+			struct epoll_event ev;
+			ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+			//ev.data.ptr = reinterpret_cast<void *>(&data);
+			ev.data.fd = sock;
+
+			m_epoll.Insert(sock, ev);
+			_LOG(logTypeCommon, "CSSLServer client connecting success tuple:(%s:%d), socket %d, client count:%d\n", ip, ntohs(remote_addr.sin_port), sock, m_clientset.size());
 		}
 
 		bool Destory()
