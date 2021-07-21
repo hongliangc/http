@@ -7,6 +7,11 @@ cmake_minimum_required(VERSION 2.6)
 #项目名称
 project(test_epoll)
 
+#sdk include
+include_directories(${APP_CONTENT_PATH}/sdk/include)
+#sdk lib
+link_directories(${APP_CONTENT_PATH}/sdk/)
+
 #参与编译的源文件
 aux_source_directory(. ROOT_SRC)
 

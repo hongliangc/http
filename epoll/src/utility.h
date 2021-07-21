@@ -22,7 +22,6 @@
 #include <sys/time.h>  
 #include <unistd.h>
 #endif
-using namespace std;
 
 #define FREE_PTR(x)										\
 {														\
@@ -49,7 +48,7 @@ using namespace std;
 
 /*! 格式化数据*/
 template<typename ...Args>
-static string format(const std::string &format_, Args ...args)
+static std::string format(const std::string &format_, Args ...args)
 {
 	unsigned int len = std::snprintf(nullptr, 0, format_.c_str(), args...) + 1;
 	std::unique_ptr<char[]> buf(new(std::nothrow) char[len]);
@@ -74,7 +73,7 @@ void Log(int type, char *format_, Args... args)
 #else
 	localtime_r(&t, &cur);
 #endif
-	string log = format("%04d-%02d-%02d %02d:%02d:%02d %s\n", cur.tm_year + 1900, cur.tm_mon + 1, cur.tm_mday, cur.tm_hour, cur.tm_min, cur.tm_sec, data.data());
+	std::string log = format("%04d-%02d-%02d %02d:%02d:%02d %s\n", cur.tm_year + 1900, cur.tm_mon + 1, cur.tm_mday, cur.tm_hour, cur.tm_min, cur.tm_sec, data.data());
 	printf(log.data());
 }
 
@@ -87,7 +86,7 @@ namespace _utility
 	class CUtility
 	{
 	public:
-		static string Encrypt(unsigned char* data, unsigned int len, unsigned char* key)
+		static std::string Encrypt(unsigned char* data, unsigned int len, unsigned char* key)
 		{
 #if 0
 			auto out_len = len;
@@ -102,12 +101,12 @@ namespace _utility
 			{
 				AES_ecb_encrypt(data + i, output + i, &aes_key, AES_ENCRYPT);
 			}
-			string str{ (char*)output, out_len };
+			std::string str{ (char*)output, out_len };
 			delete[] output;
 			return std::move(str);
 		}
 
-		static string Decrypt(unsigned char* data, unsigned int len, unsigned char* key)
+		static std::string Decrypt(unsigned char* data, unsigned int len, unsigned char* key)
 		{
 #if 0
 			auto out_len = len;
@@ -122,15 +121,15 @@ namespace _utility
 			{
 				AES_ecb_encrypt(data + i, output + i, &aes_key, AES_DECRYPT);
 			}
-			string str{ (char*)output, out_len };
+			std::string str{ (char*)output, out_len };
 			delete[] output;
 			return std::move(str);
 		}
 
 		/*! 字符串转换成16进制*/
-		static string ToHex(const string& s, bool upper_case = true)
+		static std::string ToHex(const std::string& s, bool upper_case = true)
 		{
-			ostringstream ret;
+			std::ostringstream ret;
 			ret << std::hex << std::setfill('0');
 			for (unsigned char c : s)
 				ret << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) << int(c);
@@ -139,7 +138,7 @@ namespace _utility
 		}
 
 		//transform strings to hex
-		static bool ConvertStr2Hex(const unsigned char *in, int ilen, string &out)
+		static bool ConvertStr2Hex(const unsigned char *in, int ilen, std::string &out)
 		{
 			if (ilen == 0 || in == NULL)
 			{
@@ -155,7 +154,7 @@ namespace _utility
 			return true;
 		}
 		//transform hex to strings
-		static bool ConvertHex2Str(const unsigned char *in, int ilen, string &out)
+		static bool ConvertHex2Str(const unsigned char *in, int ilen, std::string &out)
 		{
 			if (ilen == 0 || ilen % 2 != 0 || in == NULL)
 			{
@@ -213,7 +212,7 @@ namespace _utility
 		}
 
 		// 将时间点信息转换为字符串的函数
-		static string to_string(const _time_point& t, const std::string& date_fmt) {
+		static std::string to_string(const _time_point& t, const std::string& date_fmt) {
 			std::string result;
 			std::time_t c_time_t = system_clk::to_time_t(t);
 			char mbstr[100];
@@ -236,7 +235,7 @@ namespace _utility
 		}
 
 		// 将时间点信息转换为字符串的函数
-		static string to_string(time_t c_time_t) {
+		static std::string to_string(time_t c_time_t) {
 			char mbstr[100];
 			struct tm  cur;
 #ifdef _WIN32
@@ -249,7 +248,7 @@ namespace _utility
 			}
 			size_t size = std::strftime(mbstr, sizeof(mbstr), "%Y-%m-%d %H:%M:%S", &cur);
 			if (size) {
-				string result = mbstr;
+				std::string result = mbstr;
 				return result;
 			}
 			return "";
@@ -388,7 +387,7 @@ namespace _utility
 		{
 			char mbstr[5];
 			struct tm  cur;
-			string format;
+			std::string format;
 #ifdef _WIN32
 			localtime_s(&cur, &c_time_t);
 #else
@@ -419,7 +418,7 @@ namespace _utility
 			}
 			size_t size = std::strftime(mbstr, sizeof(mbstr), format.c_str(), &cur);
 			if (size) {
-				return stoi(mbstr);
+				return std::stoi(mbstr);
 			}
 			return 0;
 		}

@@ -9,7 +9,7 @@ extern "C" {
 #include <sstream>
 #include <iostream>
 #include <thread>
-using namespace std;
+#include <assert.h>
 
 #ifdef _WIN32
 #define Errno_ GetLastError()
@@ -226,15 +226,15 @@ namespace tls {
 		ThreadPool(const ThreadPool&) = delete;
 
 		int32_t Enqueue(callback_ cb) override{
-			std::unique_lock<std::mutex> lock(mutex);
+			std::unique_lock<std::mutex> lock(m_mutex);
 			m_jobs.emplace_back(cb);
-			_LOG(logTypeCommon, "worker Enqueue size:%d", m_jobs.size());
+			_LOG(logTypeCommon, "worker Enqueue mutex:0x%0x size:%d", &m_mutex, m_jobs.size());
 			m_cond.notify_one();
 			return 0;
 		}
 		int32_t Shutdown() override {
 			{
-				std::unique_lock<std::mutex> lock(mutex);
+				std::unique_lock<std::mutex> lock(m_mutex);
 				m_status = false;
 			}
 			m_cond.notify_all();
@@ -252,7 +252,7 @@ namespace tls {
 				//ss << std::this_thread::get_id();
 				//uint64_t id = std::stoull(ss.str());
 				do {
-					//TaskQueue::callback_ fn;
+					TaskQueue::callback_ fn;
 					{
 						//_LOG(logTypeCommon, "worker id:%lld be ready ", id);
 						std::unique_lock<std::mutex> lock(m_pool->m_mutex);
@@ -261,17 +261,19 @@ namespace tls {
 							_LOG(logTypeCommon, "worker id:%d quit", m_id);
 							break;
 						}
-						_LOG(logTypeCommon, "worker id:%d ready to call cb, size:%d", m_id, m_pool->m_jobs.size());
-						//if (m_pool->m_jobs.size() == 0)
-						//{
-						//	continue;
-						//}
-						//fn = std::move(m_pool->m_jobs.front());
-						m_pool->m_jobs.front()();
+						auto own_lock = lock.owns_lock();
+						if (own_lock == false)
+						{
+							_LOG(logTypeCommon, "worker id:%d not obtain mutex size:%d", m_id, m_pool->m_jobs.size());
+							continue;
+						}
+						_LOG(logTypeCommon, "worker id:%d ready to call cb,m_mutex:0x%0x, size:%d,own_lock:%d", m_id, &m_pool->m_mutex, m_pool->m_jobs.size(), own_lock);
+						fn = m_pool->m_jobs.front();
 						m_pool->m_jobs.pop_front();
+						_LOG(logTypeCommon, "worker id:%d fininsh, size:%d", m_id, m_pool->m_jobs.size());
 					}
-					//fn(); 
-					_LOG(logTypeCommon, "worker id:%d fininsh, size:%d", m_id, m_pool->m_jobs.size());
+					assert(true == static_cast<bool>(fn));
+					fn(); 
 				} while (true);
 			}
 		public:
@@ -290,7 +292,7 @@ namespace tls {
 
 
 	template<typename Proxy>
-	class Channel
+	class Channel:public std::enable_shared_from_this<Channel<Proxy>>
 	{
 #if 0
 	public:
@@ -322,7 +324,15 @@ namespace tls {
 		explicit Channel(
 			std::function<int(int, char*, int)> read,
 			std::function<int(int, char*, int)> write):
-			m_read(read),m_write(write){
+			m_read(read),m_write(write), m_sock(INVALID_SOCKET){
+		}
+		~Channel()
+		{
+			_LOG(logTypeCommon, "~Channel() addres:0x%0x, fd:%d", this, m_sock);
+			closesocket(m_sock);
+			m_sock = INVALID_SOCKET;
+			m_read = nullptr;
+			m_write = nullptr;
 		}
 
 		bool Initialize()
@@ -337,10 +347,10 @@ namespace tls {
 			//m_error = [&m_proxy](int err) { OnErr(err); };
 			//std::function<void(int)> fn = std::bind(&Proxy::OnErr, &m_proxy, std::placeholders::_1);
 			auto fn1 = std::bind(&Channel<Proxy>::HandleWrite, this, std::placeholders::_1, std::placeholders::_2);
-			printf("HandleWrite name:%s\n", typeid(fn1).name());
+			_LOG(logTypeCommon, "HandleWrite name:%s\n", typeid(fn1).name());
 
 			auto fn = std::bind(&Proxy::OnErr, &m_proxy, std::placeholders::_1);
-			printf("OnErr name:%s\n", typeid(fn).name());
+			_LOG(logTypeCommon, "OnErr name:%s\n", typeid(fn).name());
 			m_message = std::bind(&Proxy::OnMessage, &m_proxy);
 #endif
 			return true;
@@ -358,7 +368,12 @@ namespace tls {
 
 		/*!客户端事件处理*/
 		void OnMessage(){ 
-			m_proxy.OnMessage();
+			if (m_read && m_write){
+				m_proxy.OnMessage(m_sock);
+			}
+			else{
+				_LOG(logTypeCommon, "Channel OnMessage read or write is null!");
+			}
 		}
 		void OnError(int err) { 
 			m_proxy.OnError(err);
@@ -411,7 +426,7 @@ namespace tls {
 	public:
 		ISSLSession(std::string host, uint32_t port) :m_sock(INVALID_SOCKET), m_host(host), m_port(port), m_status(false) {}
 		virtual ~ISSLSession() {}
-		virtual socket_ CreateSocket(string host, int port, Fn_init fn)
+		virtual socket_ CreateSocket(std::string host, int port, Fn_init fn)
 		{
 			struct addrinfo hint, *result;
 			memset(&hint, 0x00, sizeof(addrinfo));
@@ -518,7 +533,7 @@ namespace tls {
 	protected:
 		socket_ m_sock;
 		int32_t m_port;
-		string m_host;
+		std::string m_host;
 		bool m_status;
 		DataCb m_datacb;
 		UniqueCtxPtr m_ctx;
@@ -528,7 +543,12 @@ namespace tls {
 	{
 	public:
 		CSSLClient(std::string host, uint32_t port) :ISSLSession(host, port) {}
-		~CSSLClient() {}
+		~CSSLClient() {
+			_LOG(logTypeCommon, "~CSSLClient() waiting for thread join fd:%d", m_sock);
+			Destroy();
+			m_thread->join();
+			_LOG(logTypeCommon, "~CSSLClient() is finish");
+		}
 
 		bool SendData(char* data, int len)
 		{
@@ -662,8 +682,8 @@ namespace tls {
 								{
 									if (TryAgain(Errno_) == true)
 									{
-										this_thread::sleep_for(std::chrono::milliseconds(5));
 										_LOG(logTypeCommon, "CSSLClient SSL_write failed! try_count:%d", try_count++);
+										std::this_thread::sleep_for(std::chrono::seconds(1));
 										continue;
 									}
 									else
@@ -755,7 +775,7 @@ namespace tls {
 					_LOG(logTypeCommon, "SSL_connect failed errinfo:%s ", ERR_error_string(decodedError, NULL));
 					return ret;
 				}
-				if (timer.elapsed<chrono::seconds>() > seconds)
+				if (timer.elapsed<std::chrono::seconds>() > seconds)
 				{
 					_LOG(logTypeCommon, "NonBlockingConnect SSL_connect connect timeout");
 					return ret;
@@ -867,11 +887,11 @@ namespace tls {
 					OPENSSL_free(issuer);
 
 					X509_free(server_cert);
-					_LOG(logTypeCommon, "SSL session conneect");
+					_LOG(logTypeCommon, "SSL session conneect fd:%d", m_sock);
 				}
 
 				m_status = true;
-				std::thread([this]() { RunTask(); }).detach();
+				m_thread = std::make_unique<std::thread>([this]() { RunTask(); });
 			}
 			catch (const std::exception& e)
 			{
@@ -889,6 +909,7 @@ namespace tls {
 		std::mutex m_mutex;
 		ListData m_listData;
 		UniqueSslPtr m_ssl;
+		std::unique_ptr<std::thread> m_thread;
 	};
 
 
@@ -900,8 +921,8 @@ namespace tls {
 		using CallBack = std::function<void()>;
 	private:
 		Epoll m_epoll;
-		
-		std::map<int, std::shared_ptr<T>> m_clientset;
+		std::mutex m_ClientMutex;
+		std::map<int, std::shared_ptr<T>> m_ClientMap;
 	public:
 		CSSLServer(std::string host, uint32_t port) :ISSLSession(host, port) {
 			m_epoll.Initialize();
@@ -1180,39 +1201,49 @@ namespace tls {
 #endif
 					struct epoll_event events[MaxClient];
 					memset(events, 0, MaxClient * sizeof(struct epoll_event));
-					int ready_num = 0;
-					while (m_status) {
-						ready_num = m_epoll.WaitEvent(events, MaxClient, 1000);
-						//_LOG(logTypeCommon, "CSSLServer trigger Events num:%d", ready_num);
-						if (ready_num > 0) {
-							for (int i = 0; i < ready_num; ++i) {
-								int fd = events[i].data.fd;
-								if (events[i].events & EPOLLRDHUP) {
-									_LOG(logTypeCommon, "CSSLServer socket:%d closed", fd);
-									m_epoll.Remove(fd);
-									auto iter = m_clientset.find(fd);
-									m_clientset.erase(iter);
-									continue;
+					int ready_num = m_epoll.WaitEvent(events, MaxClient, 1000);
+					//_LOG(logTypeCommon, "CSSLServer trigger Events num:%d", ready_num);
+					if (ready_num > 0) {
+						for (int i = 0; i < ready_num; ++i) {
+							int fd = events[i].data.fd;
+							if (events[i].events & EPOLLRDHUP) {
+								std::unique_lock<std::mutex> lock(m_ClientMutex);
+								_LOG(logTypeCommon, "CSSLServer socket:%d closed", fd);
+								m_epoll.Remove(fd);
+								auto iter = m_ClientMap.find(fd);
+								m_ClientMap.erase(iter);
+								continue;
+							}
+							if (events[i].events & EPOLLIN) {
+								if (fd == m_sock)
+								{
+									HandleConn();
 								}
-								if (events[i].events & EPOLLIN) {
-									if (fd == m_sock)
+								else
+								{
 									{
-										HandleConn();
-									}
-									else
-									{
-										_LOG(logTypeCommon, "CSSLServer push requst to queue fd:%d", fd);
-										auto iter = m_clientset.find(fd);
-										if (iter == m_clientset.end())
+										std::unique_lock<std::mutex> lock(m_ClientMutex);
+										auto iter = m_ClientMap.find(fd);
+										if (iter == m_ClientMap.end())
 										{
 											_LOG(logTypeCommon, "CSSLServer HandleWrite not find ssl");
 											continue;
 										}
-										T* channel = iter->second.get();
+#if 0
+										std::shared_ptr<T> channel = iter->second;
+										_LOG(logTypeCommon, "CSSLServer push requst to queue channel:0x%0x, fd:%d", channel.get(), fd);
 										task_queue->Enqueue([channel]() {
-											//_LOG(logTypeCommon, "TaskQueue channel:0x%0x, fd:%d", channel,channel->m_sock);
-											channel->OnMessage(); 
+											//_LOG(logTypeCommon, "TaskQueue IN channel:0x%0x, fd:%d", channel.get(), channel->m_sock);
+											channel->OnMessage();
+											//_LOG(logTypeCommon, "TaskQueue OUT channel:0x%0x, fd:%d", channel.get(), channel->m_sock);
 										});
+#else
+										task_queue->Enqueue([self = iter->second.get()->shared_from_this()]() {
+											_LOG(logTypeCommon, "TaskQueue IN channel:0x%0x, fd:%d", self, self->m_sock);
+											self->OnMessage();
+											_LOG(logTypeCommon, "TaskQueue OUT channel:0x%0x, fd:%d", self, self->m_sock);
+										});
+#endif
 									}
 								}
 							}
@@ -1319,13 +1350,17 @@ namespace tls {
 				_LOG(logTypeCommon, "CSSLServer HandleRead param error!");
 				return -1;
 			}
-			auto iter = m_clientset.find(sock);
-			if (iter == m_clientset.end())
+			T* channel = nullptr;
 			{
-				_LOG(logTypeCommon, "CSSLServer HandleRead not find key");
-				return -1;
+				std::unique_lock<std::mutex> lock(m_ClientMutex);
+				auto iter = m_ClientMap.find(sock);
+				if (iter == m_ClientMap.end())
+				{
+					_LOG(logTypeCommon, "CSSLServer HandleRead not find key");
+					return -1;
+				}
+				channel = iter->second.get();
 			}
-			T* channel = iter->second.get();
 			/*!需要设置为非阻塞,否则会阻塞*/
 			int len = SSL_read(channel->m_ssl.get(), buffer, buflen);
 			if (len < 0 && TryAgain(Errno_) != true)
@@ -1344,13 +1379,17 @@ namespace tls {
 				_LOG(logTypeCommon, "CSSLServer HandleRead param error!");
 				return 0;
 			}
-			auto iter = m_clientset.find(sock);
-			if (iter == m_clientset.end())
+			T* channel = nullptr;
 			{
-				_LOG(logTypeCommon, "CSSLServer HandleRead not find key");
-				return -1;
+				std::unique_lock<std::mutex> lock(m_ClientMutex);
+				auto iter = m_ClientMap.find(sock);
+				if (iter == m_ClientMap.end())
+				{
+					_LOG(logTypeCommon, "CSSLServer HandleRead not find key");
+					return -1;
+				}
+				channel = iter->second.get();
 			}
-			T* channel = iter->second.get();
 			/*!需要设置为非阻塞,否则会阻塞*/
 			int len = SSL_write(channel->m_ssl.get(), buffer, buflen);
 			if (len < 0 && TryAgain(Errno_) != true)
@@ -1369,14 +1408,14 @@ namespace tls {
 			auto sock = accept(m_sock, (struct sockaddr *) &remote_addr, &len);
 			if (sock == -1) {
 				_LOG(logTypeCommon, "CSSLServer accept failed err:%d", Errno_);
-				this_thread::sleep_for(std::chrono::milliseconds(10));
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			}
 
 			char ip[32] = { 0 };
 			inet_ntop(AF_INET, &remote_addr.sin_addr, ip, sizeof(ip));
 			//_LOG(logTypeCommon, "CSSLServer client %s:%d, socket %d\n", ip, ntohs(remote_addr.sin_port), sock);
 
-			auto ssl = shared_ptr<SSL>(SSL_new(m_ctx.get()), [](SSL *_p) {
+			auto ssl = std::shared_ptr<SSL>(SSL_new(m_ctx.get()), [](SSL *_p) {
 				SSL_shutdown(_p);
 				SSL_free(_p);
 			});
@@ -1411,7 +1450,7 @@ namespace tls {
 				this->HandleWrite(sock, buffer, buflen);
 			});
 #else
-			shared_ptr<T> channel = std::make_shared<T>(
+			std::shared_ptr<T> channel = std::make_shared<T>(
 			std::bind(&tls::CSSLServer<T>::HandleRead,this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
 			std::bind(&tls::CSSLServer<T>::HandleWrite, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 #endif
@@ -1424,7 +1463,15 @@ namespace tls {
 			channel->m_ssl = ssl;
 			channel->m_sock = sock;
 
-			m_clientset[sock] = channel;
+			{
+				std::unique_lock<std::mutex> lock(m_ClientMutex);
+				auto iter = m_ClientMap.find(sock);
+				if (iter != m_ClientMap.end())
+				{
+					m_ClientMap.erase(iter);
+				}
+				m_ClientMap[sock] = channel;
+			}
 			set_nonblock(sock, true);
 
 			struct epoll_event ev;
@@ -1433,7 +1480,7 @@ namespace tls {
 			ev.data.fd = sock;
 
 			m_epoll.Insert(sock, ev);
-			_LOG(logTypeCommon, "CSSLServer client connecting success tuple:(%s:%d), socket %d, client count:%d\n", ip, ntohs(remote_addr.sin_port), sock, m_clientset.size());
+			_LOG(logTypeCommon, "CSSLServer client connecting success tuple:(%s:%d), socket %d, client count:%d\n", ip, ntohs(remote_addr.sin_port), sock, m_ClientMap.size());
 		}
 
 		bool Destory()
