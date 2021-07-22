@@ -265,7 +265,7 @@ struct is_specialization : std::false_type {};
 // template<template<typename...> class Ref, typename... Args>
 // struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
 
-template<template<class> class Ref,class Args>
+template<template<typename> class Ref,class Args>
 struct is_specialization<Ref<Args>,Ref>: std::true_type{};
 
 void test_specializaton()

@@ -40,29 +40,191 @@ extern "C" {
 #include "TBinarySerialize.h"
 using namespace Serialize_;
 using namespace std;
+#define FORBID_COPY(x)					\
+	x(const x&) = delete;				\
+	x& operator =(const x&) = delete;	\
+	x(x &&) = delete;					\
+	x& operator =(x&&) = delete;
+
+class TaskQueue
+{
+public:
+	using Job = std::function<void()>;
+	std::mutex m_mutex;
+	std::condition_variable m_cond;
+	std::list<Job> m_jobs;
+	std::unique_ptr<std::thread> m_thread;
+	bool m_running;
+public:
+	FORBID_COPY(TaskQueue)
+	void RunTask()	{
+		do 
+		{
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_cond.wait(lock, [this]()->bool {
+				return !m_jobs.empty();
+			});
+			for (auto job :m_jobs)
+			{
+				job();
+			}
+			m_jobs.clear();
+		} while (m_running);
+	}
+	TaskQueue() {
+		m_running = true;
+		m_thread = std::make_unique<std::thread>([this]() { RunTask(); });
+	}
+	~TaskQueue()	{
+		m_running = false;
+		m_thread->join();
+	}
+	void enqueue(Job job){
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_jobs.push_back(job);
+		m_cond.notify_one();
+	}
+};
+#if 1
+class Work :public enable_shared_from_this<Work>
+{
+public:
+	std::weak_ptr<Work> weak_self() {
+		return std::weak_ptr<Work>(shared_from_this());
+	}
+	//returns std::future<void>
+	auto asyncMethod() {
+		//Acquire shared_ptr to self from the weak_ptr
+		//Capture the shared_ptr.
+		return std::async(std::launch::async, [self = shared_from_this()]() {
+			//Async task executing in a different thread
+			std::this_thread::sleep_for(std::chrono::seconds(2));
+			self->doSomething();
+		});
+	}
+
+	void doSomething() {
+		printf("doSomething buf:%s\n", buf);
+	}
+
+public:
+	Work() {
+		buf = new char[10];
+		memset(buf, 0, 10);
+		memcpy(buf, "hello", strlen("hello"));
+		printf("Work() address:0x%0x\n",this);
+	}
+	~Work() {
+		delete[]buf;
+		printf("~Work() address:0x%0x\n", this);
+	}
+	FORBID_COPY(Work)
+public:
+	char* buf;
+};
+#else
+class Work
+{
+public:
+	//returns std::future<void>
+	auto asyncMethod() {
+		//Acquire shared_ptr to self from the weak_ptr
+		//Capture the shared_ptr.
+		return std::async(std::launch::async, [this]() {
+			//Async task executing in a different thread
+			std::this_thread::sleep_for(std::chrono::seconds(2));
+			doSomething();
+		});
+	}
+
+	void doSomething() {
+		printf("buf:%s\n",buf);
+	}
+
+public:
+	Work() {
+		buf = new char[10];
+		memset(buf, 0, sizeof(10));
+		memcpy(buf, "hello", strlen("hello"));
+		printf("Work()\n");
+	}
+	~Work() {
+		delete[]buf;
+		printf("~Work()\n");
+	}
+	FORBID_COPY(Work)
+public:
+	char* buf;
+};
+#endif
+
+
+TEST_CASE("enable_shared_from_this")
+{
+#if 0
+	std::future<void> fut;
+	{ // block
+		auto pn = std::make_shared<Work>();
+		fut = pn->asyncMethod();
+	}
+	//The Work object lives until the async task is finished
+	fut.get(); //waits until the async work is done 
+#else
+	TaskQueue taskqueue;
+	{
+		/*内存泄漏*/
+		auto work = std::make_shared<Work>();
+		std::cout << "begin  use count:" << work.use_count() << endl;
+		for (auto count = 0; count < 10; count++)
+		{
+			taskqueue.enqueue([self = work->shared_from_this()](){
+				self->doSomething();
+				std::cout << "use count:" << self.use_count() <<endl;
+			});
+		}
+		std::cout << "end use count:" << work.use_count() << endl;
+	}
+
+	{
+		/*无内存泄漏模式*/
+		auto work = std::make_shared<Work>();
+		std::cout << "begin  use count:" << work.use_count() << endl;
+		for (auto count = 0; count < 10; count++)
+		{
+			taskqueue.enqueue([self = work->weak_self()](){
+				std::cout << "use count:" << self.use_count() << endl;
+				if (auto instan = self.lock())
+				{
+					instan->doSomething();
+					std::cout << "get instan use count:" << self.use_count() << endl;
+				}
+			});
+		}
+		std::cout << "end use count:" << work.use_count() << endl;
+	}
+	
+	std::cout << "over enable_shared_from_this" << endl;
+#endif
+	
+}
 
 
 
 template <typename FunctionT>
-struct Coentry
-{
-	static void coentry(void * arg)
-	{
+struct Coentry{
+	static void coentry(void * arg)	{
 		// Is this safe?
 		FunctionT * function = reinterpret_cast<FunctionT *>(arg);
-
 		(*function)();
 	}
 
-	static void invoke(FunctionT function)
-	{
+	static void invoke(FunctionT function)	{
 		coentry(reinterpret_cast<void *>(&function));
 	}
 };
 
 template <typename FunctionT>
-void coentry(FunctionT function)
-{
+void coentry(FunctionT function){
 	Coentry<FunctionT>::invoke(function);
 }
 
