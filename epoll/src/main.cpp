@@ -10,7 +10,7 @@
 class Client:public tls::CSSLClient
 {
 	public:
-		Client(std::string host, uint32_t port):CSSLClient(host, port){}
+		Client():CSSLClient(){}
 		
 		void OnRecv(char* buffer, int len) {
 			_LOG(logTypeCommon, "Client OnMessage total len:%d, fd:%d", len, m_sock);
@@ -56,9 +56,9 @@ int main()
 
 	//static_assert(std::is_member_function_pointer<decltype(&Server::Register)>::value,"T::Register is not a member function.");
 #if 1
-	std::shared_ptr<tls::CSSLServer<tls::Channel<Server>>> m_sslserver = std::make_shared<tls::CSSLServer<tls::Channel<Server>>>("127.0.0.1", 8080);
+	std::shared_ptr<tls::CSSLServer<tls::Channel<Server>>> m_sslserver = std::make_shared<tls::CSSLServer<tls::Channel<Server>>>();
 	std::thread([m_sslserver]() {
-		m_sslserver->Initialize();
+		m_sslserver->Initialize("127.0.0.1", 8080);
 	}).detach();
 
 	std::vector<std::thread> m_vecThread;
@@ -68,14 +68,25 @@ int main()
 			do 
 			{
 				std::this_thread::sleep_for(std::chrono::seconds(1));
-				std::shared_ptr<Client> m_sslclient = std::make_shared<Client>("127.0.0.1", 8080);
-				m_sslclient->Initialize();
+				std::shared_ptr<Client> m_sslclient = std::make_shared<Client>();
+#if 0
+				m_sslclient->Initialize("127.0.0.1", 8080);
 				for (int coun = 0; coun < 10; coun++)
 				{
 					char buffer[1024 * 4 + 10] = { 0 };
 					m_sslclient->SendData(buffer, sizeof(buffer));
 					std::this_thread::sleep_for(std::chrono::seconds(1));
 				}
+#else
+				for (int coun = 0; coun < 10; coun++)
+				{
+					m_sslclient->Initialize("127.0.0.1", 8080);
+					char buffer[1024 * 4 + 10] = { 0 };
+					m_sslclient->SendData(buffer, sizeof(buffer));
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+					m_sslclient->Destroy();
+				}
+#endif
 			} while (1);
 		});
 		m_vecThread.emplace_back(std::move(thread));

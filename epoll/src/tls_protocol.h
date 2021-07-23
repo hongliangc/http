@@ -178,7 +178,7 @@ namespace tls {
 		int32_t Enqueue(const callback_& cb) override {
 			std::unique_lock<std::mutex> lock(m_mutex);
 			m_jobs.emplace_back(cb);
-			_LOG(logTypeCommon, "worker Enqueue mutex:0x%0x size:%d", &m_mutex, m_jobs.size());
+			//_LOG(logTypeCommon, "worker Enqueue mutex:0x%0x size:%d", &m_mutex, m_jobs.size());
 			m_cond.notify_one();
 			return 0;
 		}
@@ -291,8 +291,9 @@ namespace tls {
 			Destroy();
 		}
 
-		bool TryAgain(int err)
+		bool TryAgain()
 		{
+			int err = Errno_;
 			if (err == 0)
 			{
 				return true;
@@ -316,7 +317,10 @@ namespace tls {
 
 		/*!客户端事件处理*/
 		void OnMessage() {
-			if (m_read && m_write && m_status) {
+			if (m_status == false){
+				return;
+			}
+			if (m_read && m_write) {
 				char buff[8*1024];
 				int total = 0;
 				do
@@ -326,7 +330,7 @@ namespace tls {
 					{
 						total += received;
 					}
-					else if (TryAgain(Errno_) == true)
+					else if (TryAgain() == true)
 					{
 						break;
 					}
@@ -338,7 +342,10 @@ namespace tls {
 					}
 
 				} while (1);
-				m_proxy.OnMessage(m_sock, buff, total);
+				if (total > 0)
+				{
+					m_proxy.OnMessage(m_sock, buff, total);
+				}
 			}
 			else {
 				_LOG(logTypeCommon, "Channel OnMessage read or write is null!");
@@ -371,7 +378,7 @@ namespace tls {
 		using DataCb = std::function<int(char*, int, int)>;
 		using Fn_init = std::function<bool(socket_ sock, const struct addrinfo &ai)>;
 	public:
-		ISSLSession(std::string host, uint32_t port) :m_sock(INVALID_SOCKET), m_host(host), m_port(port), m_status(false) {}
+		ISSLSession() :m_sock(INVALID_SOCKET), m_status(false) {}
 		virtual ~ISSLSession() {}
 		virtual socket_ CreateSocket(std::string host, int port, Fn_init fn)
 		{
@@ -423,8 +430,9 @@ namespace tls {
 #endif
 		}
 		
-		bool TryAgain(int err)
+		bool TryAgain()
 		{
+			int err = Errno_;
 			if (err == 0)
 			{
 				return true;
@@ -444,23 +452,8 @@ namespace tls {
 #endif
 		}
 
-		void Destroy()
-		{
-			if (m_sock != INVALID_SOCKET)
-			{
-				closesocket(m_sock);
-				m_sock = INVALID_SOCKET;
-			}
-			m_port = 0;
-			m_host = "";
-			m_status = false;
-		}
-
-
 	protected:
 		socket_ m_sock;
-		int32_t m_port;
-		std::string m_host;
 		bool m_status;
 		UniqueCtxPtr m_ctx;
 	};
@@ -470,18 +463,18 @@ namespace tls {
 	class CSSLClient :public ISSLSession
 	{
 	public:
-		CSSLClient(std::string host, uint32_t port) :ISSLSession(host, port) {}
+		CSSLClient() :ISSLSession() {}
 		~CSSLClient() {
-			_LOG(logTypeCommon, "~CSSLClient() waiting for thread join fd:%d", m_sock);
+			_LOG(logTypeCommon, "~CSSLClient is called addr:0x%0x", this);
 			Destroy();
-			if (m_thread){
-				m_thread->join();
-			}
-			_LOG(logTypeCommon, "~CSSLClient() is finish");
 		}
 
 		bool SendData(char* data, int len)
 		{
+			if (m_status == false)
+			{
+				return false;
+			}
 			if (data == NULL || len <= 0)
 			{
 				_LOG(logTypeCommon, "SendData param error");
@@ -533,17 +526,18 @@ namespace tls {
 						received = SSL_read(m_ssl.get(), buffer, sizeof(buffer));
 						if (received > 0)
 						{
-							_LOG(logTypeCommon, "CSSLClient SSL_read len:%d", received);
+							//_LOG(logTypeCommon, "CSSLClient SSL_read len:%d", received);
 							OnRecv(buffer, received);
 						}
 						else
 						{
-							int err = SSL_get_error(m_ssl.get(), received);
-							switch (err)
+							int ssl_err = SSL_get_error(m_ssl.get(), received);
+							switch (ssl_err)
 							{
 							case SSL_ERROR_ZERO_RETURN:
+							case SSL_ERROR_SSL:
 								// peer disconnected...
-								_LOG(logTypeCommon, "CSSLClient SSL_ERROR_ZERO_RETURN error:%d", Errno_);
+								_LOG(logTypeCommon, "CSSLClient SSL_read error:%d,ssl_err:%d", Errno_, ssl_err);
 								OnError(Errno_);
 								return;
 							case SSL_ERROR_WANT_READ:
@@ -554,12 +548,13 @@ namespace tls {
 									FD_SET(m_sock, &fds);
 									timeout.tv_sec = 0;
 									timeout.tv_usec = 500 * 1000;
-									err = select(m_sock + 1, &fds, NULL, NULL, &timeout);
-									if (err > 0)
+									int ret = select(m_sock + 1, &fds, NULL, NULL, &timeout);
+									if (ret > 0)
 										continue;
-									if (err == 0) {
+									if (ret == 0) {
 									}
 									else {
+										_LOG(logTypeCommon, "CSSLClient RunTask select error:%d", Errno_);
 										OnError(Errno_);
 										return;
 									}
@@ -587,16 +582,17 @@ namespace tls {
 								}
 								else
 								{
-									if (TryAgain(Errno_) == true)
+									int ssl_err = SSL_get_error(m_ssl.get(), ret);
+									if (TryAgain() == true && ssl_err != SSL_ERROR_ZERO_RETURN && ssl_err != SSL_ERROR_SSL)
 									{
-										_LOG(logTypeCommon, "CSSLClient SSL_write failed! try_count:%d", try_count++);
+										_LOG(logTypeCommon, "CSSLClient SSL_write failed! try_count:%d,ssl_err:%d", try_count++, ssl_err);
 										std::this_thread::sleep_for(std::chrono::seconds(1));
 										continue;
 									}
 									else
 									{
 										OnError(Errno_);
-										_LOG(logTypeCommon, "CSSLClient SSL_write failed! erron:%d", Errno_);
+										_LOG(logTypeCommon, "CSSLClient SSL_write failed! erron:%d, ssl_err:%d", Errno_, ssl_err);
 										return;
 									}
 								}
@@ -605,6 +601,10 @@ namespace tls {
 							{
 								iter = m_listData.erase(iter);
 								_LOG(logTypeCommon, "CSSLClient SSL_write fd:%d, success len:%d", m_sock, offset);
+							}
+							else
+							{
+								iter++;
 							}
 						}
 					}
@@ -644,7 +644,6 @@ namespace tls {
 			_LOG(logTypeCommon, "NonBlockingConnect SSL_connect begin!");
 			int ret = -1;
 			while (1) {
-				_utility::CDataTime timer;
 				ret = SSL_connect(ssl);
 				if (ret == 1) {
 					break;
@@ -655,9 +654,12 @@ namespace tls {
 				FD_SET(m_sock, &fds);
 				int decodedError = SSL_get_error(ssl, ret);
 
+				timeval tv;
+				tv.tv_sec = seconds;
+				tv.tv_usec = 0;
 				if (decodedError == SSL_ERROR_WANT_READ) {
-					int result = select(m_sock + 1, &fds, NULL, NULL, NULL);
-					if (result == -1) {
+					int result = select(m_sock + 1, &fds, NULL, NULL, &tv);
+					if (result <= 0) {
 						_LOG(logTypeCommon, "NonBlockingConnect SSL_ERROR_WANT_READ error:%d", Errno_);
 
 						decodedError = SSL_get_error(ssl, decodedError);
@@ -667,8 +669,8 @@ namespace tls {
 					}
 				}
 				else if (decodedError == SSL_ERROR_WANT_WRITE) {
-					int result = select(m_sock + 1, NULL, &fds, NULL, NULL);
-					if (result == -1) {
+					int result = select(m_sock + 1, NULL, &fds, NULL, &tv);
+					if (result <= 0) {
 						_LOG(logTypeCommon, "NonBlockingConnect SSL_ERROR_WANT_WRITE error:%d", Errno_);
 						decodedError = SSL_get_error(ssl, decodedError);
 						ERR_print_errors_fp(stderr);
@@ -682,16 +684,11 @@ namespace tls {
 					_LOG(logTypeCommon, "SSL_connect failed errinfo:%s ", ERR_error_string(decodedError, NULL));
 					return ret;
 				}
-				if (timer.elapsed<std::chrono::seconds>() > seconds)
-				{
-					_LOG(logTypeCommon, "NonBlockingConnect SSL_connect connect timeout");
-					return ret;
-				}
 			}
 			return ret;
 		}
 		
-		bool Initialize()
+		bool Initialize(std::string host, uint32_t port)
 		{
 			try
 			{
@@ -743,7 +740,7 @@ namespace tls {
 #endif
 					return true;
 				};
-				m_sock = CreateSocket(m_host, m_port, init);
+				m_sock = CreateSocket(host, port, init);
 				if (m_sock == INVALID_SOCKET)
 				{
 					_LOG(logTypeCommon, "CreateSocket failed");
@@ -812,9 +809,37 @@ namespace tls {
 		}
 
 
-		bool Destory()
+		void Destroy()
 		{
-			ISSLSession::Destroy();
+			try
+			{
+				_LOG(logTypeCommon, "CSSLClient Destroy is called  addr:0x%0x, fd:%d", this, m_sock);
+				m_status = false;
+				m_listData.clear();
+				if (m_thread)
+				{
+					if (m_thread->joinable())
+					{
+						m_thread->join();
+					}
+				}
+
+				if (m_sock != INVALID_SOCKET)
+				{
+					closesocket(m_sock);
+					m_sock = INVALID_SOCKET;
+				}
+
+				if (m_ssl)
+				{
+					m_ssl.reset();
+					m_ssl = nullptr;
+				}
+			}
+			catch (const std::exception& e)
+			{
+				_LOG(logTypeCommon, "CSSLClient Destroy catch exception:%s", e.what());
+			}
 		}
 	public:
 		std::mutex m_mutex;
@@ -831,17 +856,21 @@ namespace tls {
 	{
 		using CallBack = std::function<void()>;
 	private:
-
+		std::unique_ptr<std::thread> m_thread;
 #ifndef _WIN32
 		Epoll m_epoll;
 #endif
 		std::mutex m_ClientMutex;
 		std::map<socket_, std::shared_ptr<T>> m_ClientMap;
 	public:
-		CSSLServer(std::string host, uint32_t port) :ISSLSession(host, port) {}
-		~CSSLServer() { }
+		CSSLServer() :ISSLSession() {}
+		~CSSLServer() {
+			_LOG(logTypeCommon, "~CSSLServer is called address:0x%0x",this);
+			Destroy();
+		}
 
 		void RunTask()
+
 		{
 			//set_nonblock(m_sock, true);
 			try
@@ -851,25 +880,21 @@ namespace tls {
 				{
 #ifdef _WIN32
 					fd_set fdsr;
-					fd_set fdse;
 					FD_ZERO(&fdsr);
-					FD_ZERO(&fdse);
 					timeval tv;
 					tv.tv_sec = 1;
 					tv.tv_usec = 0;
 					socket_ sock = m_sock;
 					FD_SET(m_sock, &fdsr);
-					FD_SET(m_sock, &fdse);
 					for (auto element: m_ClientMap)	{
 						FD_SET(element.first, &fdsr);
-						FD_SET(element.first, &fdse);
 						if (element.first > sock){
 							sock = element.first;
 						}
 					}
 
 
-					int ret = select(static_cast<int>(sock + 1), &fdsr, nullptr, &fdse, &tv);
+					int ret = select(static_cast<int>(sock + 1), &fdsr, nullptr, nullptr, &tv);
 					if (ret > 0) {
 						if (FD_ISSET(m_sock, &fdsr))
 						{
@@ -880,9 +905,11 @@ namespace tls {
 							std::unique_lock<std::mutex> lock(m_ClientMutex);
 							for (auto iter = m_ClientMap.begin(); iter != m_ClientMap.end();)
 							{
-								if (FD_ISSET(iter->first, &fdse))
+								int err = Errno_;
+								int ssl_err = SSL_get_error(iter->second->m_ssl.get(), -1);
+								if (ssl_err == SSL_ERROR_SSL || ssl_err == SSL_ERROR_ZERO_RETURN)
 								{
-									_LOG(logTypeCommon, "CSSLServer socket:%d closed", iter->first);
+									_LOG(logTypeCommon, "CSSLServer RunTask fd:%d closed, err:%d, ssl_err:%d", iter->first, err, ssl_err);
 									iter->second->Destroy();
 									iter->second->OnError(Errno_);
 									iter = m_ClientMap.erase(iter);
@@ -892,26 +919,38 @@ namespace tls {
 								else if (FD_ISSET(iter->first, &fdsr))
 								{
 #if 1
+									static int count = 0;
+									if (++count % 100 == 0)
+									{
+										_LOG(logTypeCommon, "TaskQueue Enqueue count:%d", count);
+									}
+
  									task_queue->Enqueue([self = iter->second->weak_self()]() {
-										_LOG(logTypeCommon, "TaskQueue before use_count:%d", self.use_count());
+										//_LOG(logTypeCommon, "TaskQueue before use_count:%d", self.use_count());
 										if (auto instan = self.lock())
 										{											
 											instan->OnMessage();
-											_LOG(logTypeCommon, "TaskQueue after use_count:%d", self.use_count());
+											//_LOG(logTypeCommon, "TaskQueue after use_count:%d", self.use_count());
 										}
  										//_LOG(logTypeCommon, "TaskQueue OUT channel:0x%0x, fd:%d", self, self->m_sock);
- 									});
-#else
-									task_queue->Enqueue([self = std::weak_ptr<T>(iter->second)]() {
-										auto proxy = self.lock();
-										if (proxy) {
-											_LOG(logTypeCommon, "TaskQueue IN channel:0x%0x, fd:%d, use_count:%d", proxy, proxy->m_sock, proxy.use_count());
-											proxy->OnMessage();
-											proxy.reset();
-										}
-										//_LOG(logTypeCommon, "TaskQueue OUT channel:0x%0x, fd:%d", self, self->m_sock);
 									});
+#else
+									char buff[8 * 1024];
+									int len = SSL_read(iter->second->m_ssl.get(), buff, sizeof(buff));
+									if (len <= 0)
+									{
+										int err = Errno_;
+										int ssl_err = SSL_get_error(iter->second->m_ssl.get(), len);
+										_LOG(logTypeCommon, "CSSLServer SSL_read fd:%d, err:%d, ssl_err:%d", iter->first, err, ssl_err);
+										if (err == SSL_ERROR_ZERO_RETURN || err == SSL_ERROR_SYSCALL)
+										{
+											iter = m_ClientMap.erase(iter);
+											continue;
+										}
+									}
+									_LOG(logTypeCommon, "Server SSL_read total len:%d, fd:%d", len, iter->first);
 #endif
+
 								}
 								iter++;
 							}
@@ -923,111 +962,6 @@ namespace tls {
 					else {
 						_LOG(logTypeCommon, "connect select error:%d!", Errno_);
 					}
-
-
-#if 0
-					struct sockaddr_in remote_addr;
-					int len = sizeof(struct sockaddr_in);
-					memset(&remote_addr, 0x00, sizeof(remote_addr));
-					/* 等待客户端连上来 */
-					auto sock = accept(m_sock, (struct sockaddr *) &remote_addr, &(int)len);
-					if (sock == -1) {
-						if (!TryAgain(Errno_))
-						{
-							_LOG(logTypeCommon, "accept failed err:%d", Errno_);
-						}
-						this_thread::sleep_for(std::chrono::milliseconds(10));
-						continue;
-					}
-
-					char ip[32] = { 0 };
-					inet_ntop(AF_INET, &remote_addr.sin_addr, ip, sizeof(ip));
-					_LOG(logTypeCommon, "client %s:%d, socket %d\n", ip, ntohs(remote_addr.sin_port), sock);
-
-					auto ssl = shared_ptr<SSL>(SSL_new(m_ctx.get()), [](SSL *_p) {
-						SSL_shutdown(_p);
-						SSL_free(_p);
-					});
-					if (ssl == nullptr)
-					{
-						ERR_print_errors_fp(stderr);
-						_LOG(logTypeCommon, "SSL_new failed");
-						closesocket(sock);
-						continue;
-					}
-					if (SSL_set_fd(ssl.get(), sock) == 0)
-					{
-						ERR_print_errors_fp(stderr);
-						_LOG(logTypeCommon, "SSL_set_fd failed");
-						closesocket(sock);
-						continue;
-					}
-					/* 建立SSL连接 */
-					if (SSL_accept(ssl.get()) == -1) {
-						_LOG(logTypeCommon, "SSL_accept failed err:%d", Errno_);
-						closesocket(sock);
-					}
-					CallBack callback = [this, ssl]() {
-						auto ssl_ = ssl;
-						do
-						{
-							const int readSize = 1024;
-							char *rc = NULL;
-							int received, count = 0;
-							fd_set fds;
-							struct timeval timeout;
-
-							char buffer[1024] = { '\0' };
-							received = SSL_write(ssl_.get(), buffer, sizeof(buffer));
-							if (received > 0)
-							{
-								_LOG(logTypeCommon, "CSSLServer SSL_write len:%d", received);
-							}
-							received = SSL_read(ssl_.get(), buffer, readSize);
-							if (received > 0)
-							{
-								_LOG(logTypeCommon, "CSSLServer SSL_read len:%d", received);
-								OnRecv(buffer, received);
-							}
-							else
-							{
-								if (TryAgain(Errno_) == true)
-								{
-									this_thread::sleep_for(std::chrono::milliseconds(5));
-									continue;
-								}
-								else
-								{
-									OnError();
-									_LOG(logTypeCommon, "CSSLServer SSL_read failed! erron:%d", Errno_);
-									return;
-								}
-							}
-
-
-						} while (m_status);
-					};
-					using T_ = decltype(callback);
-					_LOG(logTypeCommon, "CSSLServer 111 fn address:0x%0x!, ssl:0x%0x", &callback, &ssl);
-					void* ptr = reinterpret_cast<void *>(&callback);
-
-
-					std::thread([ptr]() {
-
-						CallBack *fn = reinterpret_cast<CallBack*>(ptr);
-						if (fn != NULL)
-						{
-							(*fn)();
-						}
-						else
-						{
-							_LOG(logTypeCommon, "CSSLServer 222 fn address:0x%0x!", ptr);
-						}
-					}).detach();
-
-#endif
-
-
 #else
 
 					struct epoll_event events[MaxClient];
@@ -1068,17 +1002,13 @@ namespace tls {
 
 
 										task_queue->Enqueue([self = iter->second->weak_self()]() {
-											_LOG(logTypeCommon, "TaskQueue before use_count:%d", self.use_count());
+											//_LOG(logTypeCommon, "TaskQueue before use_count:%d", self.use_count());
 											if (auto instan = self.lock())
 											{
 												instan->OnMessage();
-												_LOG(logTypeCommon, "TaskQueue after use_count:%d", self.use_count());
+												//_LOG(logTypeCommon, "TaskQueue after use_count:%d", self.use_count());
 											}
 										});
-
-// 										task_queue->Enqueue([self = iter->second.get()->shared_from_this()]() {
-// 											self->OnMessage();
-// 										});
 									}
 								}
 							}
@@ -1125,7 +1055,7 @@ namespace tls {
 			return ctx;
 		}
 
-		bool Initialize()
+		bool Initialize(std::string host, uint32_t port)
 		{
 			Fn_init init = [](socket_ sock, const struct addrinfo &ai)->bool {
 
@@ -1145,7 +1075,7 @@ namespace tls {
 				}
 				return true;
 			};
-			m_sock = CreateSocket(m_host, m_port, init);
+			m_sock = CreateSocket(host, port, init);
 			if (m_sock == INVALID_SOCKET)
 			{
 				_LOG(logTypeCommon, "CSSLServer CreateSocket failed! erron:%d", Errno_);
@@ -1175,7 +1105,7 @@ namespace tls {
 			m_epoll.Insert(m_sock, ev);
 #endif
 			m_status = true;
-			std::thread([this]() { RunTask(); }).detach();
+			m_thread = std::make_unique<std::thread>([this]() { RunTask(); });
 			return  true;
 		}
 
@@ -1193,17 +1123,21 @@ namespace tls {
 			}
 			/*!需要设置为非阻塞,否则会阻塞*/
 			int len = SSL_read(proxy->m_ssl.get(), buffer, buflen);
-			if (len < 0 && TryAgain(Errno_) != true)
+			if (len <= 0/* && TryAgain() != true*/)
 			{
 				int err = Errno_;
-				_LOG(logTypeCommon, "CSSLServer HandleRead fd:%d, err:%d", proxy->m_sock, err);
-				std::unique_lock<std::mutex> lock(m_ClientMutex);
-				auto iter = m_ClientMap.find(proxy->m_sock);
-				if (iter != m_ClientMap.end())
+				int ssl_err = SSL_get_error(proxy->m_ssl.get(), len);
+				if (ssl_err == SSL_ERROR_SSL || ssl_err == SSL_ERROR_ZERO_RETURN || (ssl_err == SSL_ERROR_SYSCALL && err == 0) || (TryAgain() != true))
 				{
-					iter->second->Destroy();
-					iter->second->OnError(err);
-					m_ClientMap.erase(iter);
+					_LOG(logTypeCommon, "CSSLServer HandleRead fd:%d, err:%d, ssl_err:%d", proxy->m_sock, err, ssl_err);
+					std::unique_lock<std::mutex> lock(m_ClientMutex);
+					auto iter = m_ClientMap.find(proxy->m_sock);
+					if (iter != m_ClientMap.end())
+					{
+						iter->second->Destroy();
+						iter->second->OnError(err);
+						m_ClientMap.erase(iter);
+					}
 				}
 				return -1;
 			}
@@ -1225,17 +1159,21 @@ namespace tls {
 			}
 			/*!需要设置为非阻塞,否则会阻塞*/
 			int len = SSL_write(proxy->m_ssl.get(), buffer, buflen);
-			if (len < 0 && TryAgain(Errno_) != true)
+			if (len <= 0 /*&& TryAgain() != true*/)
 			{
 				int err = Errno_;
-				_LOG(logTypeCommon, "CSSLServer HandleWrite fd:%d, err:%d", proxy->m_sock, err);
-				std::unique_lock<std::mutex> lock(m_ClientMutex);
-				auto iter = m_ClientMap.find(proxy->m_sock);
-				if (iter != m_ClientMap.end())
+				int ssl_err = SSL_get_error(proxy->m_ssl.get(), len);
+				if (ssl_err == SSL_ERROR_SSL || ssl_err == SSL_ERROR_ZERO_RETURN || (ssl_err == SSL_ERROR_SYSCALL && err == 0) || (TryAgain() != true))
 				{
-					iter->second->Destroy();
-					iter->second->OnError(err);
-					m_ClientMap.erase(iter);
+					_LOG(logTypeCommon, "CSSLServer HandleWrite fd:%d, err:%d, ssl_err:%d", proxy->m_sock, err, ssl_err);
+					std::unique_lock<std::mutex> lock(m_ClientMutex);
+					auto iter = m_ClientMap.find(proxy->m_sock);
+					if (iter != m_ClientMap.end())
+					{
+						iter->second->Destroy();
+						iter->second->OnError(err);
+						m_ClientMap.erase(iter);
+					}
 				}
 				return -1;
 			}
@@ -1257,10 +1195,11 @@ namespace tls {
 			inet_ntop(AF_INET, &remote_addr.sin_addr, ip, sizeof(ip));
 			//_LOG(logTypeCommon, "CSSLServer client %s:%d, socket %d\n", ip, ntohs(remote_addr.sin_port), sock);
 
-			auto ssl = std::shared_ptr<SSL>(SSL_new(m_ctx.get()), [](SSL *_p) {
-				SSL_shutdown(_p);
-				SSL_free(_p);
-			});
+			auto ssl = std::shared_ptr<SSL>(SSL_new(m_ctx.get()), SslDeleter{});
+// 			auto ssl = std::shared_ptr<SSL>(SSL_new(m_ctx.get()), [](SSL *_p) {
+// 				SSL_shutdown(_p);
+// 				SSL_free(_p);
+// 			});
 			if (ssl == nullptr)
 			{
 				ERR_print_errors_fp(stderr);
@@ -1303,7 +1242,7 @@ namespace tls {
 				{
 					m_ClientMap.erase(iter);
 				}
-				m_ClientMap[sock] = channel;
+				m_ClientMap[sock] = std::move(channel);
 			}
 			set_nonblock(sock, true);
 
@@ -1318,9 +1257,27 @@ namespace tls {
 			_LOG(logTypeCommon, "CSSLServer client connecting success tuple:(%s:%d), socket %d, client count:%d\n", ip, ntohs(remote_addr.sin_port), sock, m_ClientMap.size());
 		}
 
-		bool Destory()
+		void Destroy()
 		{
-			ISSLSession::Destroy();
+			_LOG(logTypeCommon, "CSSLServer Destroy is called  addr:0x%0x, fd:%d", this, m_sock);
+			m_status = false;
+			{
+				std::unique_lock<std::mutex> lock(m_ClientMutex);
+				m_ClientMap.clear();
+			}
+			if (m_thread)
+			{
+				if (m_thread->joinable())
+				{
+					m_thread->join();
+				}
+			}
+
+			if (m_sock != INVALID_SOCKET)
+			{
+				closesocket(m_sock);
+				m_sock = INVALID_SOCKET;
+			}
 		}
 	};
 
