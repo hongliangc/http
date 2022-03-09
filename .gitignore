@@ -20,6 +20,7 @@
 .DS_Store
 .gitignore.swp
 
+demon/demon/build
 demon/demon/Bin/build
 *.sbr
 Thumbs.db
