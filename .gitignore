@@ -17,6 +17,8 @@
 *.log
 *.o
 [Dd]ebug*/
+.DS_Store
+.gitignore.swp
 
 demon/demon/Bin/build
 *.sbr
