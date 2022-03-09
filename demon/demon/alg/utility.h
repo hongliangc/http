@@ -30,7 +30,7 @@ namespace _utility
 		std::stringstream ss;
 		for (int i = 0; i < ilen; i++)
 		{
-			//×Ö·û×ª»»³É16½øÖÆ´æ·ÅÔÚssÖĞ
+			//å­—ç¬¦è½¬æ¢æˆ16è¿›åˆ¶å­˜æ”¾åœ¨ssä¸­
 			ss << std::hex << (in[i] >> 4) << (in[i] & 0x0f);
 		}
 		ss >> out;
@@ -48,18 +48,18 @@ namespace _utility
 		int temp = 0;
 		for (int i = 0; i < ilen; i += 2)
 		{
-			//×Ö·û×ª»»³É16½øÖÆ´æ·ÅÔÚssÖĞ
+			//å­—ç¬¦è½¬æ¢æˆ16è¿›åˆ¶å­˜æ”¾åœ¨ssä¸­
 			s1 << std::hex << in[i] << in[i + 1];
-			//½«16½øÖÆ×Ö·ûÖØ¶¨Ïòµ½intÊı¾İÖĞ
+			//å°†16è¿›åˆ¶å­—ç¬¦é‡å®šå‘åˆ°intæ•°æ®ä¸­
 			s1 >> temp;
 			s1.clear();
-			//×Ö·û´®±£´æÊı¾İ
+			//å­—ç¬¦ä¸²ä¿å­˜æ•°æ®
 			out[i / 2] = temp;
 		}
 		return true;
 	}
 
-	/*! ¸ñÊ½»¯Êı¾İ*/
+	/*! æ ¼å¼åŒ–æ•°æ®*/
 	template<typename ...Args>
 	static string format(const std::string &format, Args ...args)
 	{
@@ -82,10 +82,10 @@ namespace _utility
 	class CDataTime
 	{
 	public:
-		// ÈÕÆÚÊ±¼ä¸ñÊ½»¯µÄ³£Á¿×Ö·û´®"%Y-%m-%d %H:%M:%S";
-		// ÖØÃüÃûsystem_clockÃû³Æ¿Õ¼ä
+		// æ—¥æœŸæ—¶é—´æ ¼å¼åŒ–çš„å¸¸é‡å­—ç¬¦ä¸²"%Y-%m-%d %H:%M:%S";
+		// é‡å‘½åsystem_clockåç§°ç©ºé—´
 		using system_clk = std::chrono::system_clock;
-		// ÖØÃüÃûtime_pointÀàĞÍ
+		// é‡å‘½åtime_pointç±»å‹
 		using _time_point = std::chrono::time_point<system_clk>;
 	public:
 		CDataTime() : m_begin(system_clk::now()) {}
@@ -104,7 +104,7 @@ namespace _utility
 			return std::chrono::system_clock::to_time_t(m_begin);
 		}
 
-		// ½«Ê±¼äµãĞÅÏ¢×ª»»Îª×Ö·û´®µÄº¯Êı
+		// å°†æ—¶é—´ç‚¹ä¿¡æ¯è½¬æ¢ä¸ºå­—ç¬¦ä¸²çš„å‡½æ•°
 		static string to_string(const _time_point& t, const std::string& date_fmt) {
 			std::string result;
 			std::time_t c_time_t = system_clk::to_time_t(t);
@@ -127,7 +127,7 @@ namespace _utility
 			return "";
 		}
 
-		// ½«Ê±¼äµãĞÅÏ¢×ª»»Îª×Ö·û´®µÄº¯Êı
+		// å°†æ—¶é—´ç‚¹ä¿¡æ¯è½¬æ¢ä¸ºå­—ç¬¦ä¸²çš„å‡½æ•°
 		static string to_string(time_t c_time_t) {
 			char mbstr[100];
 			struct tm  cur;
@@ -148,7 +148,7 @@ namespace _utility
 		}
 		
 
-		// ½«×Ö·û´®×ª»»Îªtime_pointµÄº¯Êı,Ä¬ÈÏÊ±¼ä¸ñÊ½"%Y-%m-%d %H:%M:%S"
+		// å°†å­—ç¬¦ä¸²è½¬æ¢ä¸ºtime_pointçš„å‡½æ•°,é»˜è®¤æ—¶é—´æ ¼å¼"%Y-%m-%d %H:%M:%S"
 		static _time_point from_string(const std::string &src_str) {
 			std::stringstream ss;
 			ss << src_str;
@@ -161,7 +161,7 @@ namespace _utility
 		}
 
 
-		// ½«×Ö·û´®×ª»»Îªtime_pointµÄº¯Êı
+		// å°†å­—ç¬¦ä¸²è½¬æ¢ä¸ºtime_pointçš„å‡½æ•°
 		static _time_point from_string(const std::string &src_str, const std::string& date_fmt) {
 			std::stringstream ss;
 			ss << src_str;
@@ -174,7 +174,7 @@ namespace _utility
 		}
 
 
-		/*½«ÄêÔÂÈÕ£¬Ê±·ÖÃë×ª»»³É epoch time(the Unix epoch is 00:00:00 UTC on 1 January 1970 (an arbitrary date);) Ê±¼ä*/
+		/*å°†å¹´æœˆæ—¥ï¼Œæ—¶åˆ†ç§’è½¬æ¢æˆ epoch time(the Unix epoch is 00:00:00 UTC on 1 January 1970 (an arbitrary date);) æ—¶é—´*/
 		static time_t to_epoch_time(uint16_t year, uint16_t month, uint16_t day, uint16_t hour, uint16_t min, uint16_t sec) {
 			std::stringstream ss;
 			ss << _utility::format("%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, min, sec);
@@ -185,7 +185,7 @@ namespace _utility
 			return c_time_t;
 		}
 
-		/*»ñÈ¡ epoch timeÊ±¼ä(the Unix epoch is 00:00:00 UTC on 1 January 1970 (an arbitrary date);) */
+		/*è·å– epoch timeæ—¶é—´(the Unix epoch is 00:00:00 UTC on 1 January 1970 (an arbitrary date);) */
 		static time_t CurrentTime()
 		{
 			return std::chrono::duration_cast<std::chrono::seconds>(system_clk::now().time_since_epoch()).count();
@@ -194,7 +194,7 @@ namespace _utility
 		static bool CheckValidTime(time_t c_time_t)
 		{
 			_time_point time = system_clk::from_time_t(c_time_t);
-			/*debugµ÷ÊÔÊ±¸ñÊ½´®ĞèÒª²¹Æë·ñÔò»áÓĞ¶ÏÑÔ´íÎó£¬std::get_time doesn't stop parsing the input stream 
+			/*debugè°ƒè¯•æ—¶æ ¼å¼ä¸²éœ€è¦è¡¥é½å¦åˆ™ä¼šæœ‰æ–­è¨€é”™è¯¯ï¼Œstd::get_time doesn't stop parsing the input stream 
 			as soon as a mismatch is found or stream is eof, but continues until the format string is exhausted instead.
 			This provokes a dereference of the input stream iterator even when it is at the eof.
 			In debug builds it raises an assert. In release builds it is silently ignored.*/
@@ -206,7 +206,7 @@ namespace _utility
 		}
 
 
-		/*½«Ê±¼ä×ª»»³ÉÄêÔÂÈÕ£¬Ê±·ÖÃë*/
+		/*å°†æ—¶é—´è½¬æ¢æˆå¹´æœˆæ—¥ï¼Œæ—¶åˆ†ç§’*/
 		template<TimeType type>
 		static uint32_t to_datatime(std::time_t c_time_t) 
 		{

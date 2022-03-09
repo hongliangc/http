@@ -1,29 +1,39 @@
-#����Ҫ�����С�汾   
+#声明要求的最小版本   
 cmake_minimum_required(VERSION 2.6)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#PLATFORM �������ƽ̨��Linux��Linux_ARM��Linux_Android��Win32_ARM��Win32_Android
-#VERSION  �������汾��Debug��Release
+#PLATFORM 定义编译平台，Linux、Linux_ARM、Linux_Android、Win32_ARM、Win32_Android
+#VERSION  定义编译版本，Debug、Release
 
-#����������Appƽ̨Ŀ¼����ǰĿ¼Ϊapp����Ŀ¼
+#定义依赖的App平台目录，当前目录为app运行目录
 set(APP_CONTENT_PATH ${CMAKE_CURRENT_LIST_DIR})
 
-#�趨���������úͱ���ѡ��
-set(CMAKE_TOOLCHAIN_FILE "${APP_CONTENT_PATH}/toolchain.cmake")
+#设定编译器配置和编译选项
+#set(CMAKE_TOOLCHAIN_FILE "${APP_CONTENT_PATH}/toolchain.cmake")
 #set(CMAKE_TOOLCHAIN_FILE "Toolchain file" CACHE FILEPATH "${APP_CONTENT_PATH}/toolchain.cmake")
 #set(CMAKE_TOOLCHAIN_FILE "${APP_CONTENT_PATH}/toolchain.cmake")
 
-#��Ŀ����
+
+#引用编译器自带配置
+if(0)
+set(CMAKE_C_COMPILER   "gcc")
+set(CMAKE_CXX_COMPILER   "g++")
+
+endif()
+
+SET(CMAKE_BUILD_TYPE "Debug")
+
+#项目名称
 project(test)
 
-if(0)
-	# ���c++��������־������c++11֧�ֱ���
+if(1)
+	# 检查c++编译器标志，设置c++11支持变量
 	include(CheckCXXCompilerFlag)
 	CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 	CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 
-	# ʹ�ñ������ñ����־
+	# 使用变量设置编译标志
 	if(COMPILER_SUPPORTS_CXX11)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 	elseif(COMPILER_SUPPORTS_CXX0X)
@@ -45,7 +55,7 @@ endif()
 message("**************************************before CMAKE_C_FLAGS:${CMAKE_C_FLAGS}")
 message("**************************************before CMAKE_CXX_FLAGS:${CMAKE_CXX_FLAGS}")
 
-#���ù������λ��
+#配置工程输出位置
 set(LIBRARY_OUTPUT_PATH "${APP_CONTENT_PATH}")
 set(EXECUTABLE_OUTPUT_PATH "${APP_CONTENT_PATH}")
 
@@ -54,6 +64,6 @@ message("EXECUTABLE_OUTPUT_PATH is:" ${EXECUTABLE_OUTPUT_PATH})
 
 
 
-#������Ŀ¼
+#增加子目录
 add_subdirectory(${APP_CONTENT_PATH}/alg)
 

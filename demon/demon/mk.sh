@@ -6,7 +6,7 @@ basepath=$(cd `dirname $0`; pwd)
 if [ ! -d $basepath/Bin/build ]
 then
 	echo "make build dir"
-	mkdir $basepath/Bin/build -p
+	mkdir -p $basepath/Bin/build
 fi
 
 cd $basepath/Bin/build

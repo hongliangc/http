@@ -1,19 +1,19 @@
-#ÉùÃ÷ÒªÇóµÄ×îĞ¡°æ±¾   
+#å£°æ˜è¦æ±‚çš„æœ€å°ç‰ˆæœ¬   
 cmake_minimum_required(VERSION 2.6)
 
-#PLATFORM ¶¨Òå±àÒëÆ½Ì¨£¬Linux¡¢Linux_ARM¡¢Linux_Android¡¢Win32_ARM¡¢Win32_Android
-#VERSION  ¶¨Òå±àÒë°æ±¾£¬Debug¡¢Release
+#PLATFORM å®šä¹‰ç¼–è¯‘å¹³å°ï¼ŒLinuxã€Linux_ARMã€Linux_Androidã€Win32_ARMã€Win32_Android
+#VERSION  å®šä¹‰ç¼–è¯‘ç‰ˆæœ¬ï¼ŒDebugã€Release
 
-#ÏîÄ¿Ãû³Æ
+#é¡¹ç›®åç§°
 project(alg_test)
 
 
 include_directories(${APP_CONTENT_PATH}/alg/encrypt)
-#¸½¼ÓÁ´½Ó¿âÄ¿Â¼
+#é™„åŠ é“¾æ¥åº“ç›®å½•
 #include_directories(${APP_CONTENT_PATH}/sdk/include)
 #link_directories(${APP_CONTENT_PATH}/sdk/lib)
 
-#²ÎÓë±àÒëµÄÔ´ÎÄ¼ş
+#å‚ä¸ç¼–è¯‘çš„æºæ–‡ä»¶
 aux_source_directory(. ROOT_SRC)
 aux_source_directory(./encrypt EN_SRC)
 aux_source_directory(./encrypt/bn BN_SRC)
@@ -24,9 +24,9 @@ set(ALG_SRC
 	${BN_SRC}
 )
 
-#¸½¼Ó±àÒëÑ¡Ïî
+#é™„åŠ ç¼–è¯‘é€‰é¡¹
 add_definitions(-fPIC)
-#Éú³É¿â
+#ç”Ÿæˆåº“
 add_executable(alg_test ${ALG_SRC})
 #add_dependencies(alg_test pthread sqlite3)
 target_link_libraries(alg_test pthread)

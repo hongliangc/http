@@ -58,13 +58,13 @@ namespace Serialize_
 		}
 
 		/*!
-		* @brief ĞòÁĞ»¯¶ÔÏó³õÊ¼»¯
+		* @brief åºåˆ—åŒ–å¯¹è±¡åˆå§‹åŒ–
 		* @param mode
-		*	 ĞòÁĞ»¯¶Á»òÕßĞ´
+		*	 åºåˆ—åŒ–è¯»æˆ–è€…å†™
 		* @param stream
-		*	 ĞòÁĞ»¯ºóÊı¾İ´æ´¢µÄ¶ÔÏó
+		*	 åºåˆ—åŒ–åæ•°æ®å­˜å‚¨çš„å¯¹è±¡
 		* @param convert
-		*	 ÊÇ·ñ½øĞĞ´óĞ¡¶Ë×ª»»£¬true½øĞĞ×ª»»
+		*	 æ˜¯å¦è¿›è¡Œå¤§å°ç«¯è½¬æ¢ï¼Œtrueè¿›è¡Œè½¬æ¢
 		*/
 		explicit TBinaryArchive(eSerializeMode mode, std::iostream &stream, bool convert):
 			BaseArchive(this), m_mode(mode), m_data(stream), m_convertEndian(convert) {
@@ -167,7 +167,7 @@ namespace Serialize_
 			}
 		}
 	private:
-		//¼ÇÂ¼Êı¾İµÄÆ«ÒÆÁ¿
+		//è®°å½•æ•°æ®çš„åç§»é‡
 		std::string  m_buf;
 		eSerializeMode m_mode;
 		std::iostream & m_data;

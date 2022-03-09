@@ -1,4 +1,4 @@
-#ÉùÃ÷ÒªÇóµÄ×îÐ¡°æ±¾   
+#å£°æ˜Žè¦æ±‚çš„æœ€å°ç‰ˆæœ¬   
 cmake_minimum_required(VERSION 2.6)
 
 STRING(TOLOWER "${PLATFORM}" PLATFORM)
@@ -8,7 +8,7 @@ message(WARNING "##################################TOOLCHAIN PLATFORM : " ${PLAT
 message(WARNING "###################################TOOLCHAIN VERSION : " ${VERSION})
 
 
-#¸ù¾ÝÆ½Ì¨¼°±àÒë°æ±¾ÅäÖÃ±àÒëÆ÷¼°±àÒëÑ¡Ïî	
+#æ ¹æ®å¹³å°åŠç¼–è¯‘ç‰ˆæœ¬é…ç½®ç¼–è¯‘å™¨åŠç¼–è¯‘é€‰é¡¹	
 
 	ADD_DEFINITIONS("-DLINUX")
     ADD_DEFINITIONS("-DHAVE_PTHREADS")
@@ -18,7 +18,7 @@ message(WARNING "###################################TOOLCHAIN VERSION : " ${VERS
     set( CMAKE_CXX_FLAGS $ENV{CXXFLAGS}  CACHE STRING "" FORCE )
     set( CMAKE_ASM_FLAGS ${CMAKE_C_FLAGS} CACHE STRING "" FORCE )
     set( CMAKE_LDFLAGS_FLAGS ${CMAKE_CXX_FLAGS} CACHE STRING "" FORCE )
-	#ÒýÓÃ±àÒëÆ÷×Ô´øÅäÖÃ
+	#å¼•ç”¨ç¼–è¯‘å™¨è‡ªå¸¦é…ç½®
     set(CMAKE_C_COMPILER   "gcc")
     set(CMAKE_CXX_COMPILER   "g++")
     message(WARNING "222222222222222222222222222222222222222222222222222222222, ${CMAKE_FIND_ROOT_PATH}")
@@ -32,14 +32,14 @@ message(WARNING "###################################TOOLCHAIN VERSION : " ${VERS
 	set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 	set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY )
 
-	#ÅäÖÃ±àÒëÃüÁîÑ¡Ïî
+	#é…ç½®ç¼–è¯‘å‘½ä»¤é€‰é¡¹
 	if (${VERSION} MATCHES "debug")
 		SET(PLATFORM Linux_ARM)
 		SET(VERSION Debug)
 		SET(CMAKE_BUILD_TYPE Debug)
 
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DEGL_API_FB -g -w  ¨CDDEBUG  -DLINUX")  
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEGL_API_FB -std=gnu++11  -g -w  ¨CDDEBUG  -DLINUX")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DEGL_API_FB -g -w  â€“DDEBUG  -DLINUX")  
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEGL_API_FB -std=gnu++11  -g -w  â€“DDEBUG  -DLINUX")
 		message(WARNING "333333333333333333333333333333333333333333333333333333 debug")
 	else()
 		SET(PLATFORM Linux_ARM)

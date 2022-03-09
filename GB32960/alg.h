@@ -4,12 +4,13 @@ class CSort
 public:
 	CSort() = default;
 	~CSort() = default;
+
 public:
 	static void Display(int arr[], int len);
-	/*¶ÑÌØµã
-	Ð¡¶Ñ½ÚµãN;arr[N] < arr[2N+1] && arr[N] < arr[2N+2]
-	·ÇÒ¶×Ó½ÚµãÊý£ºN/2,Ò¶×Ó½ÚµãÊýN+1/2
-	´´½¨×îÐ¡¶ÑÐè±éÀúÇ°N / 2¸ö·ÇÒ¶×Ó½Úµã( [ 0 ~ n/2-1 ] )½øÐÐÏÂÂË¼´¿É
+	/*å †ç‰¹ç‚¹
+	å°å †èŠ‚ç‚¹N;arr[N] < arr[2N+1] && arr[N] < arr[2N+2]
+	éžå¶å­èŠ‚ç‚¹æ•°ï¼šN/2,å¶å­èŠ‚ç‚¹æ•°N+1/2
+	åˆ›å»ºæœ€å°å †éœ€éåŽ†å‰N / 2ä¸ªéžå¶å­èŠ‚ç‚¹( [ 0 ~ n/2-1 ] )è¿›è¡Œä¸‹æ»¤å³å¯
 	*/
 	static void MinHeapSort(int arr[], int len);
 	static void MaxHeapSort(int arr[], int len);
@@ -33,29 +34,36 @@ void CSort::MinHeapSort(int arr[], int len)
 {
 	printf("before MinHeapSort:");
 	Display(arr, len);
-	auto adjustHeap = [](int arr[], int len, int index) {
-		int child = 2 * index + 1; //×ó×Ó½Úµã
-		for (; child < len; child = 2 * child + 1) {
-			//Èç¹ûÓÒ×Ó½Úµã´æÔÚ£¬ÇÒ±ð×ó½ÚµãÐ¡Ôò½»»»Î»ÖÃ
-			if (child + 1 < len && arr[child] < arr[child + 1]) {
+	auto adjustHeap = [](int arr[], int len, int index)
+	{
+		int child = 2 * index + 1; //å·¦å­èŠ‚ç‚¹
+		for (; child < len; child = 2 * child + 1)
+		{
+			//å¦‚æžœå³å­èŠ‚ç‚¹å­˜åœ¨ï¼Œä¸”åˆ«å·¦èŠ‚ç‚¹å°åˆ™äº¤æ¢ä½ç½®
+			if (child + 1 < len && arr[child] < arr[child + 1])
+			{
 				child++;
 			}
-			//ÅÐ¶Ï×Ó½ÚµãºÍ¸¸½Úµã´óÐ¡
-			if (arr[index] < arr[child]) {
+			//åˆ¤æ–­å­èŠ‚ç‚¹å’Œçˆ¶èŠ‚ç‚¹å¤§å°
+			if (arr[index] < arr[child])
+			{
 				swap(arr[index], arr[child]);
 				index = child;
 			}
-			else {
+			else
+			{
 				break;
 			}
 		}
 	};
-	//·ÇÒ¶×Ó½Úµã´Óµ×²ã¿ªÊ¼ÏòÉÏµ½¶¥²ã0£¬Ê¹¶Ñ¶¥ÔªËØ×î´ó
-	for (int i = len / 2 - 1; i >= 0; i--) {
+	//éžå¶å­èŠ‚ç‚¹ä»Žåº•å±‚å¼€å§‹å‘ä¸Šåˆ°é¡¶å±‚0ï¼Œä½¿å †é¡¶å…ƒç´ æœ€å¤§
+	for (int i = len / 2 - 1; i >= 0; i--)
+	{
 		adjustHeap(arr, len, i);
 	}
-	//½«¶Ñ¶¥ÔªËØÓëÄ©Î²ÔªËØ½øÐÐ½»»»£¬Ê¹Ä©Î²ÔªËØ×î´ó£¬È»ºó¼ÌÐøµ÷Õû¶Ñ
-	for (int i = len - 1; i > 0; i--) {
+	//å°†å †é¡¶å…ƒç´ ä¸Žæœ«å°¾å…ƒç´ è¿›è¡Œäº¤æ¢ï¼Œä½¿æœ«å°¾å…ƒç´ æœ€å¤§ï¼Œç„¶åŽç»§ç»­è°ƒæ•´å †
+	for (int i = len - 1; i > 0; i--)
+	{
 		swap(arr[0], arr[i]);
 		adjustHeap(arr, i, 0);
 	}
@@ -67,28 +75,119 @@ void CSort::MaxHeapSort(int arr[], int len)
 {
 	printf("before MaxHeapSort:");
 	Display(arr, len);
-	auto adjustheap = [](int arr[], int len, int index) {
+	auto adjustheap = [](int arr[], int len, int index)
+	{
 		int child = 2 * index + 1;
-		for (; child < len; child = 2 * child + 1) {
-			if (child + 1 < len && arr[child] > arr[child + 1]) {
+		for (; child < len; child = 2 * child + 1)
+		{
+			if (child + 1 < len && arr[child] > arr[child + 1])
+			{
 				child++;
 			}
-			if (arr[index] > arr[child]) {
+			if (arr[index] > arr[child])
+			{
 				swap(arr[index], arr[child]);
 				index = child;
 			}
-			else {
+			else
+			{
 				break;
 			}
 		}
 	};
-	for (int i = len / 2 - 1; i >= 0; i--) {
+	for (int i = len / 2 - 1; i >= 0; i--)
+	{
 		adjustheap(arr, len, i);
 	}
-	for (int i = len - 1; i > 0; i--) {
+	for (int i = len - 1; i > 0; i--)
+	{
 		swap(arr[0], arr[i]);
 		adjustheap(arr, i, 0);
 	}
 	printf("after MaxHeapSort:");
 	Display(arr, len);
+}
+
+// using AdjacentMatrix = map<int, vector<int>>;
+#define MAX 8
+int matrix[MAX][MAX] = {
+	{0, 1, 1, 0, 0, 0, 0, 0},
+	{0, 0, 0, 1, 1, 0, 0, 0},
+	{0, 0, 0, 0, 0, 1, 1, 0},
+	{0, 1, 0, 0, 0, 0, 0, 1},
+	{0, 1, 0, 0, 0, 0, 0, 1},
+	{0, 0, 1, 0, 0, 0, 0, 1},
+	{0, 0, 1, 0, 0, 0, 0, 1},
+	{0, 0, 0, 1, 1, 1, 1, 0},
+};
+
+void Depth()
+{
+	bool bVisit[MAX] = {false};
+	stack<int> s;
+	s.push(0);
+	bVisit[0] = true;
+	printf("Depth: %d ", s.top());
+	while (!s.empty())
+	{
+		int id = s.top();
+		int i = 0;
+		for (; i < MAX; i++)
+		{
+			if (matrix[id][i] == 1 && bVisit[i] == false)
+			{
+				s.push(i);
+				bVisit[i] = true;
+				printf("%d ", i);
+				break;
+			}
+		}
+		if (i == MAX)
+		{
+			s.pop();
+		}
+	}
+}
+
+void Breadth()
+{
+	bool bVisit[MAX] = {false};
+	queue<int> q;
+	q.push(0);
+	bVisit[0] = true;
+	printf("Breadth: %d ", q.front());
+	while (!q.empty())
+	{
+		int id = q.front();
+		q.pop();
+		for (int i = 0; i < MAX; i++)
+		{
+			if (matrix[id][i] == 1 && bVisit[i] == false)
+			{
+				q.push(i);
+				bVisit[i] = true;
+				printf("%d ", i);
+			}
+		}
+	}
+}
+
+// dp ä¸‰è§’é—®é¢˜
+int triangle[4][4] = {
+	{2, 0, 0, 0},
+	{3, 4, 0, 0},
+	{6, 5, 7, 0},
+	{4, 1, 8, 3},
+};
+// dpçŠ¶æ€è½¬æ¢æ–¹ç¨‹
+
+void test_alg()
+{
+	////travers
+	Depth();
+	Breadth();
+	////sort
+	int arr[] = {4, 6, 8, 5, 9, 4, 5, 8};
+	CSort::MinHeapSort(arr, 8);
+	CSort::MaxHeapSort(arr, 8);
 }

@@ -64,7 +64,7 @@ struct RegisterProduct;
 #define REISTER_PRODUCT(Base,Derived,Id)	\
 template<>										\
 struct RegisterProduct<Base,Derived,Id>		\
-{	/*使用register方法会报错，多个存储类型*/\
+{	/*浣跨敤register鏂规硶浼氭姤閿欙紝澶氫釜瀛樺偍绫诲瀷*/\
 	static void bind(){ RegisterBinding<Base,Derived,Id>::bind(); }\
 };
 

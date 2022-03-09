@@ -9,463 +9,448 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
-#include <sstream>     // std::stringstream
+#include <sstream> // std::stringstream
 #include "Log.h"
 using namespace std;
 
-typedef char                CHAR;
-typedef signed char         INT8;
-typedef unsigned char       UCHAR;
-typedef unsigned char       UINT8;
-typedef unsigned char       BYTE;
-typedef short               SHORT;
-typedef signed short        INT16;
-typedef unsigned short      USHORT;
-typedef unsigned short      UINT16;
-typedef unsigned short      WORD;
-typedef int                 INT;
-typedef signed int          INT32;
-typedef unsigned int        UINT;
-typedef unsigned int        UINT32;
-typedef long                LONG;
-typedef unsigned long       ULONG;
-typedef unsigned long       DWORD;
-typedef __int64             LONGLONG;
-typedef __int64             LONG64;
-typedef signed __int64      INT64;
-typedef unsigned __int64    ULONGLONG;
-typedef unsigned __int64    DWORDLONG;
-typedef unsigned __int64    ULONG64;
-typedef unsigned __int64    DWORD64;
-typedef unsigned __int64    UINT64;
+typedef char CHAR;
+typedef signed char INT8;
+typedef unsigned char UCHAR;
+typedef unsigned char UINT8;
+typedef unsigned char BYTE;
+typedef short SHORT;
+typedef signed short INT16;
+typedef unsigned short USHORT;
+typedef unsigned short UINT16;
+typedef unsigned short WORD;
+typedef int INT;
+typedef signed int INT32;
+typedef unsigned int UINT;
+typedef unsigned int UINT32;
+typedef long LONG;
+typedef unsigned long ULONG;
+typedef unsigned long DWORD;
+typedef __int64 LONGLONG;
+typedef __int64 LONG64;
+typedef signed __int64 INT64;
+typedef unsigned __int64 ULONGLONG;
+typedef unsigned __int64 DWORDLONG;
+typedef unsigned __int64 ULONG64;
+typedef unsigned __int64 DWORD64;
+typedef unsigned __int64 UINT64;
 
-/** @brief ·µ»ØÖµ(³É¹¦)																	*/
-#define RET_SUCCESS				(0)
+/** @brief è¿”å›å€¼(æˆåŠŸ)																	*/
+#define RET_SUCCESS (0)
 
-/** @brief ·µ»ØÖµ(Ê§°Ü)																	*/
-#define RET_FAIL				(-1)
+/** @brief è¿”å›å€¼(å¤±è´¥)																	*/
+#define RET_FAIL (-1)
 
-#define FREE_PTR(x)										\
-{														\
-	if (NULL != x)										\
-	{													\
-		delete x;										\
-		x = NULL;										\
-	}													\
-}
+#define FREE_PTR(x)    \
+	{                  \
+		if (NULL != x) \
+		{              \
+			delete x;  \
+			x = NULL;  \
+		}              \
+	}
 
-#define FREE_ARR(x)										\
-{														\
-	if (NULL != x)										\
-	{													\
-		delete[] x;										\
-		x = NULL;										\
-	}													\
-} 
+#define FREE_ARR(x)     \
+	{                   \
+		if (NULL != x)  \
+		{               \
+			delete[] x; \
+			x = NULL;   \
+		}               \
+	}
 
+#define _HTONS(x) ((((UINT16)(x)&0xff00) >> 8) | (((UINT16)(x)&0xff) << 8))
+#define _HTONL(x) (((UINT32)(x) >> 24) | (((UINT32)(x)&0xff0000) >> 8) | (((UINT32)(x)&0xff) << 24) | (((UINT32)(x)&0xff00) << 8))
 
-
-#define _HTONS(x)	((((UINT16)(x) & 0xff00 )>> 8) | (((UINT16)(x) & 0xff) << 8))
-#define _HTONL(x)	(((UINT32)(x) >> 24) | (((UINT32)(x) & 0xff0000) >> 8) | (((UINT32)(x) & 0xff) << 24) | (((UINT32)(x) & 0xff00) << 8))			
-
-
-//ÈÕÖ¾Êä³ö
+//æ—¥å¿—è¾“å‡º
 #define LOG CLog::GetInstance().OutPutLog
-#define LOGERR(x) CLog::GetInstance().OutPutLog("[%s %d] %s\n",__FUNCTION__,__LINE__,x)
-#define LOGERR2(x,y) CLog::GetInstance().OutPutLog("[%s %d] %s %s\n",__FUNCTION__,__LINE__,x,y)
-#define LOGSYSERR CLog::GetInstance().OutPutLog("[%s %d] error:%d\n",__FUNCTION__,__LINE__,GetLastError())
+#define LOGERR(x) CLog::GetInstance().OutPutLog("[%s %d] %s\n", __FUNCTION__, __LINE__, x)
+#define LOGERR2(x, y) CLog::GetInstance().OutPutLog("[%s %d] %s %s\n", __FUNCTION__, __LINE__, x, y)
+#define LOGSYSERR CLog::GetInstance().OutPutLog("[%s %d] error:%d\n", __FUNCTION__, __LINE__, GetLastError())
 
-//Êı¾İ×ª»»Îª16½øÖÆ¸ñÊ½´òÓ¡
-#define LOGHEX(data,len) CLog::GetInstance().OutPutLogHex(data,len, __FUNCTION__,__LINE__)
-
+//æ•°æ®è½¬æ¢ä¸º16è¿›åˆ¶æ ¼å¼æ‰“å°
+#define LOGHEX(data, len) CLog::GetInstance().OutPutLogHex(data, len, __FUNCTION__, __LINE__)
 
 /**
-* @brief eCommandType
-*		ÃüÁî±íÊ¾ÀàĞÍ
-*/
+ * @brief eCommandType
+ *		å‘½ä»¤è¡¨ç¤ºç±»å‹
+ */
 enum eCommandType
 {
-	eLogin				= 0x01,		/*³µÁ¾µÇÈë*/
-	eRealtimeData,					/*ÊµÊ±Êı¾İ*/
-	eReissueData,					/*²¹·¢Êı¾İ*/
-	eLogout,						/*³µÁ¾µÇ³ö*/
-	eHeartbeat			= 0x07,		/*ĞÄÌøÊı¾İ*/
-	eTerminalTiming,				/*ÖÕ¶ËĞ£Ê±*/
+	eLogin = 0x01,	   /*è½¦è¾†ç™»å…¥*/
+	eRealtimeData,	   /*å®æ—¶æ•°æ®*/
+	eReissueData,	   /*è¡¥å‘æ•°æ®*/
+	eLogout,		   /*è½¦è¾†ç™»å‡º*/
+	eHeartbeat = 0x07, /*å¿ƒè·³æ•°æ®*/
+	eTerminalTiming,   /*ç»ˆç«¯æ ¡æ—¶*/
 };
 
-
-
 /**
-* @brief eDataType
-*		Êı¾İÀàĞÍ
-*/
+ * @brief eDataType
+ *		æ•°æ®ç±»å‹
+ */
 enum eDataType
 {
-	eBegin			= 0x00,			
-	eVehicle		= 0x01,			/*Õû³µÊı¾İ*/
-	eDrivingMotor,					/*Çı¶¯µç»úÊı¾İ*/
-	eFuelCell,						/*È¼ÁÏµç³ØÊı¾İ*/
-	eEngine,						/*·¢¶¯»úÊıÊı¾İ*/
-	eVehiclePos,					/*³µÁ¾Î»ÖÃ*/
-	eExtremum,						/*¼«ÖµÊı¾İ*/
-	eAlarmInfo,						/*±¨¾¯Êı¾İ*/
-	eVoltage,						/*³äµç´¢ÄÜ×°ÖÃµçÑ¹*/
-	eTemperature,					/*³äµç´¢ÄÜ×°ÖÃÎÂ¶È*/
+	eBegin = 0x00,
+	eVehicle = 0x01, /*æ•´è½¦æ•°æ®*/
+	eDrivingMotor,	 /*é©±åŠ¨ç”µæœºæ•°æ®*/
+	eFuelCell,		 /*ç‡ƒæ–™ç”µæ± æ•°æ®*/
+	eEngine,		 /*å‘åŠ¨æœºæ•°æ•°æ®*/
+	eVehiclePos,	 /*è½¦è¾†ä½ç½®*/
+	eExtremum,		 /*æå€¼æ•°æ®*/
+	eAlarmInfo,		 /*æŠ¥è­¦æ•°æ®*/
+	eVoltage,		 /*å……ç”µå‚¨èƒ½è£…ç½®ç”µå‹*/
+	eTemperature,	 /*å……ç”µå‚¨èƒ½è£…ç½®æ¸©åº¦*/
 	eEnd,
 };
 
 /**
-* @brief eResponseType
-*		ÃüÁî±íÊ¾ÀàĞÍ
-*/
+ * @brief eResponseType
+ *		å‘½ä»¤è¡¨ç¤ºç±»å‹
+ */
 enum eResponseType
 {
-	eSuccess		 = 0x01,		/*½ÓÊÜĞÅÏ¢ÕıÈ·*/
-	eFailure,						/*ÉèÖÃÎ´³É¹¦*/
-	eVinRepeat,						/*vinÖØ¸´´íÎó*/
-	eCommand,						/*±íÊ¾Êı¾İ°üÎ§ÃüÁî°ü£¬¶ø·ÇÓ¦´ğ°ü*/
+	eSuccess = 0x01, /*æ¥å—ä¿¡æ¯æ­£ç¡®*/
+	eFailure,		 /*è®¾ç½®æœªæˆåŠŸ*/
+	eVinRepeat,		 /*viné‡å¤é”™è¯¯*/
+	eCommand,		 /*è¡¨ç¤ºæ•°æ®åŒ…å›´å‘½ä»¤åŒ…ï¼Œè€Œéåº”ç­”åŒ…*/
 };
 
-#pragma  pack (push,1)     //×÷ÓÃ£ºÊÇÖ¸°ÑÔ­À´¶ÔÆë·½Ê½ÉèÖÃÑ¹Õ»£¬²¢ÉèĞÂµÄ¶ÔÆë·½Ê½ÉèÖÃÎªÒ»¸ö×Ö½Ú¶ÔÆë
+#pragma pack(push, 1) //ä½œç”¨ï¼šæ˜¯æŒ‡æŠŠåŸæ¥å¯¹é½æ–¹å¼è®¾ç½®å‹æ ˆï¼Œå¹¶è®¾æ–°çš„å¯¹é½æ–¹å¼è®¾ç½®ä¸ºä¸€ä¸ªå­—èŠ‚å¯¹é½
 
 /**
-* @brief StruHDR
-*		ÉÏ±¨Æ½Ì¨µÄ24¸ö×Ö½ÚÊı¾İÍ·
-*/
+ * @brief StruHDR
+ *		ä¸ŠæŠ¥å¹³å°çš„24ä¸ªå­—èŠ‚æ•°æ®å¤´
+ */
 typedef struct tagStruHDR
 {
-	//ÆğÊ¼·û
-	BYTE		m_StartCode[2];
-	//ÃüÁî±êÊ¶
-	BYTE		m_CommandCode;
-	//Ó¦´ğ±êÊ¶
-	BYTE		m_ResponsCode;
-	//VIN
-	BYTE		m_Vin[17];
-	//¼ÓÃÜ·½Ê½
-	BYTE		m_Encryption;
-	//Êı¾İ³¤¶È
-	WORD		m_Len;
-}StruHDR, *LPStruHDR;
+	//èµ·å§‹ç¬¦
+	BYTE m_StartCode[2];
+	//å‘½ä»¤æ ‡è¯†
+	BYTE m_CommandCode;
+	//åº”ç­”æ ‡è¯†
+	BYTE m_ResponsCode;
+	// VIN
+	BYTE m_Vin[17];
+	//åŠ å¯†æ–¹å¼
+	BYTE m_Encryption;
+	//æ•°æ®é•¿åº¦
+	WORD m_Len;
+} StruHDR, *LPStruHDR;
 
 /**
-* @brief StruVehicle
-*		Õû³µÊı¾İ
-*/	
+ * @brief StruVehicle
+ *		æ•´è½¦æ•°æ®
+ */
 typedef struct tagStruVehicle
 {
-	//³µÁ¾×´Ì¬
-	BYTE	m_VehicleState;						/*0x01:³µÁ¾Æô¶¯;0x02:Ï¨»ğ;0x03:ÆäËü×´Ì¬;0xFE:Òì³£;0xFF:ÎŞĞ§*/
-	//³äµç×´Ì¬
-	BYTE	m_ChargeState;						/*0x01:Í£³µ³äµç;0x02:ĞĞÊ»³äµç;0x03:Î´³äµç×´Ì¬;0x04:³äµçÍê³É;0xFF:ÎŞĞ§*/
-	//ÔËĞĞÄ£Ê½
-	BYTE	m_DrivingMode;						/*0x01:´¿µç;0x02:»ì¶¯;0x03:È¼ÓÍ;0xFE:Òì³£;0xFF:ÎŞĞ§*/
-	//³µËÙ
-	WORD	m_Speed;
-	//Àï³Ì
-	DWORD	m_Mileage;
-	//×ÜµçÑ¹
-	WORD	m_Voltage;
-	//×ÜµçÁ÷
-	WORD	m_Current;
-	//SOC
-	BYTE	m_Soc;
-	//DC×´Ì¬
-	BYTE	m_DCState;
-	//µµÎ»
-	BYTE	m_Gear;
-	//¾øÔµµç×è
-	WORD	m_Resistance;
-	//¼ÓËÙÌ¤°åĞĞ³ÌÖµ
-	BYTE	m_AcceleratorPedalValue;
-	//ÖÆ¶¯Ì¤°å
-	BYTE	m_BreakPedal;
-}StruVehicle, *LPStruVehicle;
-
-
+	//è½¦è¾†çŠ¶æ€
+	BYTE m_VehicleState; /*0x01:è½¦è¾†å¯åŠ¨;0x02:ç†„ç«;0x03:å…¶å®ƒçŠ¶æ€;0xFE:å¼‚å¸¸;0xFF:æ— æ•ˆ*/
+	//å……ç”µçŠ¶æ€
+	BYTE m_ChargeState; /*0x01:åœè½¦å……ç”µ;0x02:è¡Œé©¶å……ç”µ;0x03:æœªå……ç”µçŠ¶æ€;0x04:å……ç”µå®Œæˆ;0xFF:æ— æ•ˆ*/
+	//è¿è¡Œæ¨¡å¼
+	BYTE m_DrivingMode; /*0x01:çº¯ç”µ;0x02:æ··åŠ¨;0x03:ç‡ƒæ²¹;0xFE:å¼‚å¸¸;0xFF:æ— æ•ˆ*/
+	//è½¦é€Ÿ
+	WORD m_Speed;
+	//é‡Œç¨‹
+	DWORD m_Mileage;
+	//æ€»ç”µå‹
+	WORD m_Voltage;
+	//æ€»ç”µæµ
+	WORD m_Current;
+	// SOC
+	BYTE m_Soc;
+	// DCçŠ¶æ€
+	BYTE m_DCState;
+	//æ¡£ä½
+	BYTE m_Gear;
+	//ç»ç¼˜ç”µé˜»
+	WORD m_Resistance;
+	//åŠ é€Ÿè¸æ¿è¡Œç¨‹å€¼
+	BYTE m_AcceleratorPedalValue;
+	//åˆ¶åŠ¨è¸æ¿
+	BYTE m_BreakPedal;
+} StruVehicle, *LPStruVehicle;
 
 /**
-* @brief StruMotor
-*		Çı¶¯µç»úÊı¾İ
-*/
+ * @brief StruMotor
+ *		é©±åŠ¨ç”µæœºæ•°æ®
+ */
 typedef struct tagStruMotor
 {
-	//µç»úĞòÁĞºÅ
-	BYTE			m_Seq;
-	//µç»ú×´Ì¬ 0x01:ºÄµç,0x02:·¢µç,0x03¹Ø±Õ×´Ì¬£¬0x04:×¼±¸×´Ì¬£¬0xFE:Òì³££¬0xFF:ÎŞĞ§
-	BYTE			m_State;
-	//µç»ú¿ØÖÆÎÂ¶È
-	BYTE			m_ControlTemperature;
-	//µç»ú×ªËÙ
-	WORD			m_RotateSpeed;
-	//µç»úÅ¤¾Ø
-	WORD 			m_Torque;
-	//µç»úÎÂ¶È
-	BYTE  			m_Temperature;
-	//µç»ú¿ØÖÆÆ÷ÊäÈëµçÑ¹
-	WORD 			m_InputVoltage;
-	//µç»ú¿ØÖÆÆ÷Ö±Á÷Ä¸ÏßµçÁ÷
-	WORD 			m_Current;
-}StruMotor, *LPStruMotor;
+	//ç”µæœºåºåˆ—å·
+	BYTE m_Seq;
+	//ç”µæœºçŠ¶æ€ 0x01:è€—ç”µ,0x02:å‘ç”µ,0x03å…³é—­çŠ¶æ€ï¼Œ0x04:å‡†å¤‡çŠ¶æ€ï¼Œ0xFE:å¼‚å¸¸ï¼Œ0xFF:æ— æ•ˆ
+	BYTE m_State;
+	//ç”µæœºæ§åˆ¶æ¸©åº¦
+	BYTE m_ControlTemperature;
+	//ç”µæœºè½¬é€Ÿ
+	WORD m_RotateSpeed;
+	//ç”µæœºæ‰­çŸ©
+	WORD m_Torque;
+	//ç”µæœºæ¸©åº¦
+	BYTE m_Temperature;
+	//ç”µæœºæ§åˆ¶å™¨è¾“å…¥ç”µå‹
+	WORD m_InputVoltage;
+	//ç”µæœºæ§åˆ¶å™¨ç›´æµæ¯çº¿ç”µæµ
+	WORD m_Current;
+} StruMotor, *LPStruMotor;
 
 /**
-* @brief StruDrivingMotor
-*		Çı¶¯µç»úÊı¾İ
-*/
+ * @brief StruDrivingMotor
+ *		é©±åŠ¨ç”µæœºæ•°æ®
+ */
 typedef struct tagStruDrivingMotor
 {
-	//Çı¶¯µç»ú¸öÊı
-	BYTE				m_Num;
-	//µ¥¸öÇı¶¯µç»ú¼¯
-	vector<StruMotor>	m_pElment;
-}StruDrivingMotor, *LPStruDrivingMotor;
-
+	//é©±åŠ¨ç”µæœºä¸ªæ•°
+	BYTE m_Num;
+	//å•ä¸ªé©±åŠ¨ç”µæœºé›†
+	vector<StruMotor> m_pElment;
+} StruDrivingMotor, *LPStruDrivingMotor;
 
 /**
-* @brief StruFuelCell
-*		È¼ÁÏµç³ØÊı¾İ
-*/
+ * @brief StruFuelCell
+ *		ç‡ƒæ–™ç”µæ± æ•°æ®
+ */
 typedef struct tagStruFuelCell
 {
-	//È¼ÁÏµç³ØµçÑ¹
-	WORD				m_Voltage;
-	//È¼ÁÏµç³ØµçÁ÷
-	WORD				m_Current;
-	//È¼ÁÏÏûºÄ
-	WORD				m_Consumption;
-	//È¼ÁÏµç³ØÎÂ¶ÈÌ½Õë×ÜÊı N ·¶Î§:0~65531
-	WORD				m_ProbeSum;
-	//Ì½ÕëÎÂ¶ÈÖµ 1*N
-	vector<BYTE>		m_ProbeTempVec;
-	//ÇâÏµÍ³ÖĞ×î¸ßÎÂ¶È ·¶Î§£º0¡«2400
-	WORD				m_MaxTemperature;
-	//ÇâÏµÍ³ÖĞ×î¸ßÎÂ¶ÈÌ½Õë´úºÅ
-	BYTE				m_TempProbeNo;
-	//ÇâÏµÍ³ÖĞ×î¸ßÅ¨¶È
-	WORD				m_MaxDensity;
-	//ÇâÏµÍ³ÖĞ×î¸ßÅ¨¶È´«¸ĞÆ÷´úºÅ
-	BYTE				m_DenProbeNo;
-	//ÇâÏµÍ³ÖĞ×î¸ßÑ¹Á¦
-	WORD				m_MaxPressure;
-	//ÇâÏµÍ³ÖĞ×î¸ßÑ¹Á¦´«¸ĞÆ÷´úºÅ
-	BYTE				m_PresProbeNo;
-	//¸ßÑ¹ DC/DC×´Ì¬
-	BYTE				m_DCState;
-}StruFuelCell, *LPStruFuelCell;
-
+	//ç‡ƒæ–™ç”µæ± ç”µå‹
+	WORD m_Voltage;
+	//ç‡ƒæ–™ç”µæ± ç”µæµ
+	WORD m_Current;
+	//ç‡ƒæ–™æ¶ˆè€—
+	WORD m_Consumption;
+	//ç‡ƒæ–™ç”µæ± æ¸©åº¦æ¢é’ˆæ€»æ•° N èŒƒå›´:0~65531
+	WORD m_ProbeSum;
+	//æ¢é’ˆæ¸©åº¦å€¼ 1*N
+	vector<BYTE> m_ProbeTempVec;
+	//æ°¢ç³»ç»Ÿä¸­æœ€é«˜æ¸©åº¦ èŒƒå›´ï¼š0ï½2400
+	WORD m_MaxTemperature;
+	//æ°¢ç³»ç»Ÿä¸­æœ€é«˜æ¸©åº¦æ¢é’ˆä»£å·
+	BYTE m_TempProbeNo;
+	//æ°¢ç³»ç»Ÿä¸­æœ€é«˜æµ“åº¦
+	WORD m_MaxDensity;
+	//æ°¢ç³»ç»Ÿä¸­æœ€é«˜æµ“åº¦ä¼ æ„Ÿå™¨ä»£å·
+	BYTE m_DenProbeNo;
+	//æ°¢ç³»ç»Ÿä¸­æœ€é«˜å‹åŠ›
+	WORD m_MaxPressure;
+	//æ°¢ç³»ç»Ÿä¸­æœ€é«˜å‹åŠ›ä¼ æ„Ÿå™¨ä»£å·
+	BYTE m_PresProbeNo;
+	//é«˜å‹ DC/DCçŠ¶æ€
+	BYTE m_DCState;
+} StruFuelCell, *LPStruFuelCell;
 
 /**
-* @brief StruEngine
-*		·¢¶¯»úÊı¾İ
-*/
+ * @brief StruEngine
+ *		å‘åŠ¨æœºæ•°æ®
+ */
 typedef struct tagStruEngine
 {
-	//·¢¶¯»ú×´Ì¬ 0x01:Æô¶¯×´Ì¬,0x02:¹Ø±Õ×´Ì¬,0xFE:Òì³££¬0xFF:ÎŞĞ§
-	BYTE		m_State;
-	//ÇúÖáËÙ¶È
-	WORD		m_CrankSpeed;
-	//È¼ÓÍÏûºÄÂÊ
-	WORD		m_FuelConsumptionRate;
-}StruEngine, *LPStruEngine;
+	//å‘åŠ¨æœºçŠ¶æ€ 0x01:å¯åŠ¨çŠ¶æ€,0x02:å…³é—­çŠ¶æ€,0xFE:å¼‚å¸¸ï¼Œ0xFF:æ— æ•ˆ
+	BYTE m_State;
+	//æ›²è½´é€Ÿåº¦
+	WORD m_CrankSpeed;
+	//ç‡ƒæ²¹æ¶ˆè€—ç‡
+	WORD m_FuelConsumptionRate;
+} StruEngine, *LPStruEngine;
 
 /**
-* @brief StruVehiclePos
-*		³µÁ¾Î»ÖÃÊı¾İ¸ñÊ½
-*/
+ * @brief StruVehiclePos
+ *		è½¦è¾†ä½ç½®æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruVehiclePos
 {
-	//¶¨Î»×´Ì¬
-	BYTE		m_State;
-	//¾­¶È
-	DWORD		m_Longitude;
-	//Î³¶È
-	DWORD		m_Latitude;
-}StruVehiclePos, *LPStruVehiclePos;
+	//å®šä½çŠ¶æ€
+	BYTE m_State;
+	//ç»åº¦
+	DWORD m_Longitude;
+	//çº¬åº¦
+	DWORD m_Latitude;
+} StruVehiclePos, *LPStruVehiclePos;
 
 /**
-* @brief StruExtremum
-*		¼«ÖµÊı¾İ¸ñÊ½
-*/
+ * @brief StruExtremum
+ *		æå€¼æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruExtremum
 {
-	//×î¸ßµçÑ¹µç³Ø×ÓÏµÍ³ºÅ
-	BYTE		m_MaxVolSubsystemNo;
-	//×î¸ßµçÑ¹µç³Øµ¥Ìå´úºÅ
-	BYTE		m_MaxVolBatteryNo;
-	//µç³Øµ¥ÌåµçÑ¹×î¸ßÖµ
-	WORD		m_MaxVoltage;
-	//×îµÍµçÑ¹µç³Ø×ÓÏµÍ³ºÅ
-	BYTE		m_MinVolSubsystemNo;
-	//×îµÍµçÑ¹µç³Øµ¥Ìå´úºÅ
-	BYTE		m_MinVolBatteryNo;
-	//µç³Øµ¥ÌåµçÑ¹×îµÍÖµ
-	WORD		m_MinVoltage;
-	//×î¸ßÎÂ¶È×ÓÏµÍ³ºÅ
-	BYTE		m_MaxTempSubsystemNo;
-	//×î¸ßÎÂ¶ÈÌ½ÕëĞòºÅ
-	BYTE		m_MaxTempProbeNo;
-	//×î¸ßÎÂ¶ÈÖµ
-	BYTE		m_MaxTemperature;
-	//×îµÍÎÂ¶È×ÓÏµÍ³ºÅ
-	BYTE		m_MinTempSubsystemNo;
-	//×îµÍÎÂ¶ÈÌ½ÕëĞòºÅ
-	BYTE		m_MinTempProbeNo;
-	//×îµÍÎÂ¶ÈÖµ
-	BYTE		m_MinTemperature;
+	//æœ€é«˜ç”µå‹ç”µæ± å­ç³»ç»Ÿå·
+	BYTE m_MaxVolSubsystemNo;
+	//æœ€é«˜ç”µå‹ç”µæ± å•ä½“ä»£å·
+	BYTE m_MaxVolBatteryNo;
+	//ç”µæ± å•ä½“ç”µå‹æœ€é«˜å€¼
+	WORD m_MaxVoltage;
+	//æœ€ä½ç”µå‹ç”µæ± å­ç³»ç»Ÿå·
+	BYTE m_MinVolSubsystemNo;
+	//æœ€ä½ç”µå‹ç”µæ± å•ä½“ä»£å·
+	BYTE m_MinVolBatteryNo;
+	//ç”µæ± å•ä½“ç”µå‹æœ€ä½å€¼
+	WORD m_MinVoltage;
+	//æœ€é«˜æ¸©åº¦å­ç³»ç»Ÿå·
+	BYTE m_MaxTempSubsystemNo;
+	//æœ€é«˜æ¸©åº¦æ¢é’ˆåºå·
+	BYTE m_MaxTempProbeNo;
+	//æœ€é«˜æ¸©åº¦å€¼
+	BYTE m_MaxTemperature;
+	//æœ€ä½æ¸©åº¦å­ç³»ç»Ÿå·
+	BYTE m_MinTempSubsystemNo;
+	//æœ€ä½æ¸©åº¦æ¢é’ˆåºå·
+	BYTE m_MinTempProbeNo;
+	//æœ€ä½æ¸©åº¦å€¼
+	BYTE m_MinTemperature;
 
-}StruExtremum, *LPStruExtremum;
-
+} StruExtremum, *LPStruExtremum;
 
 /**
-* @brief StruFaultData
-*		´íÎó±¨ÎÄÊı¾İ
-*/
+ * @brief StruFaultData
+ *		é”™è¯¯æŠ¥æ–‡æ•°æ®
+ */
 typedef struct tagStruFaultData
 {
-	WORD	m_ErrorCode;
-	WORD	m_Canid;
-	BYTE	m_RawPacket[8];
-}StruFaultData,*LPStruFaultData;
-
+	WORD m_ErrorCode;
+	WORD m_Canid;
+	BYTE m_RawPacket[8];
+} StruFaultData, *LPStruFaultData;
 
 /**
-* @brief StruAlarmInfo
-*		±¨¾¯Êı¾İ¸ñÊ½
-*/
+ * @brief StruAlarmInfo
+ *		æŠ¥è­¦æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruAlarmInfo
 {
-	//±¨¾¯×î¸ßµÈ¼¶
-	BYTE			m_MaxAlarmLevel;
-	//Í¨ÓÃ±¨¾¯±êÖ¾
-	DWORD			m_ComAlarmMark;
-	//¿É³äµç´¢ÄÜ×°ÖÃ¹ÊÕÏ×ÜÊı N1
-	BYTE			m_ChargeKitFaultSum;
-	//¿É³äµç´¢ÄÜ×°ÖÃ¹ÊÕÏ´úÂëÁĞ±í 4*N1
-	vector<StruFaultData>	m_ChargeKitFaultCodeList;
-	//Çı¶¯µç»ú¹ÊÕÏ×ÜÊı N2
-	BYTE			m_MotorFaultSum;
-	//Çı¶¯µç»ú¹ÊÕÏ×ÜÊı¹ÊÕÏ´úÂëÁĞ±í 4*N2
-	vector<StruFaultData>	m_MotorFaultCodeList;
-	//·¢¶¯»ú¹ÊÕÏ×ÜÊı N3
-	BYTE			m_EngineFaultSum;
-	//·¢¶¯»ú¹ÊÕÏ×ÜÊı¹ÊÕÏ´úÂëÁĞ±í 4*N3
-	vector<DWORD>	m_EngineFaultCodeList;
-	//ÆäËü¹ÊÕÏ×ÜÊı N4
-	BYTE			m_OhterFaultSum;
-	//·¢¶¯»ú¹ÊÕÏ×ÜÊı¹ÊÕÏ´úÂëÁĞ±í 4*N4
-	vector<StruFaultData>	m_OtherFaultCodeList;
+	//æŠ¥è­¦æœ€é«˜ç­‰çº§
+	BYTE m_MaxAlarmLevel;
+	//é€šç”¨æŠ¥è­¦æ ‡å¿—
+	DWORD m_ComAlarmMark;
+	//å¯å……ç”µå‚¨èƒ½è£…ç½®æ•…éšœæ€»æ•° N1
+	BYTE m_ChargeKitFaultSum;
+	//å¯å……ç”µå‚¨èƒ½è£…ç½®æ•…éšœä»£ç åˆ—è¡¨ 4*N1
+	vector<StruFaultData> m_ChargeKitFaultCodeList;
+	//é©±åŠ¨ç”µæœºæ•…éšœæ€»æ•° N2
+	BYTE m_MotorFaultSum;
+	//é©±åŠ¨ç”µæœºæ•…éšœæ€»æ•°æ•…éšœä»£ç åˆ—è¡¨ 4*N2
+	vector<StruFaultData> m_MotorFaultCodeList;
+	//å‘åŠ¨æœºæ•…éšœæ€»æ•° N3
+	BYTE m_EngineFaultSum;
+	//å‘åŠ¨æœºæ•…éšœæ€»æ•°æ•…éšœä»£ç åˆ—è¡¨ 4*N3
+	vector<DWORD> m_EngineFaultCodeList;
+	//å…¶å®ƒæ•…éšœæ€»æ•° N4
+	BYTE m_OhterFaultSum;
+	//å‘åŠ¨æœºæ•…éšœæ€»æ•°æ•…éšœä»£ç åˆ—è¡¨ 4*N4
+	vector<StruFaultData> m_OtherFaultCodeList;
 
-
-}StruAlarmInfo, *LPStruAlarmInfo;
+} StruAlarmInfo, *LPStruAlarmInfo;
 
 /**
-* @brief StruSubVoltage
-*		³äµç´¢ÄÜ×ÓÏµÍ³µçÑ¹Êı¾İ¸ñÊ½
-*/
+ * @brief StruSubVoltage
+ *		å……ç”µå‚¨èƒ½å­ç³»ç»Ÿç”µå‹æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruSubVoltage
 {
-	//ĞòºÅ
-	BYTE			m_Sequence;
-	//³äµç´¢ÄÜ×°ÖÃµçÑ¹
-	WORD			m_Voltage;
-	//³äµç´¢ÄÜ×°ÖÃµçÁ÷
-	WORD			m_Current;
-	//µ¥Ìåµç³Ø×ÜÊı
-	WORD			m_BatterySum;
-	//±¾Ö¡ÆğÊ¼µç³ØĞòºÅ
-	WORD			m_FrameBatterySeq;
-	//±¾Ö¡µ¥Ìåµç³Ø×ÜÊı m(hex),·¶Î§£º1-200
-	BYTE			m_FrameBatterySum;
-	//µ¥Ìåµç³ØµçÑ¹	2*m,·¶Î§£º0V¡«60.000V
-	vector<WORD>	m_pSingleBatteryVoltage;
-}StruSubVoltage, *LPStruSubVoltage;
+	//åºå·
+	BYTE m_Sequence;
+	//å……ç”µå‚¨èƒ½è£…ç½®ç”µå‹
+	WORD m_Voltage;
+	//å……ç”µå‚¨èƒ½è£…ç½®ç”µæµ
+	WORD m_Current;
+	//å•ä½“ç”µæ± æ€»æ•°
+	WORD m_BatterySum;
+	//æœ¬å¸§èµ·å§‹ç”µæ± åºå·
+	WORD m_FrameBatterySeq;
+	//æœ¬å¸§å•ä½“ç”µæ± æ€»æ•° m(hex),èŒƒå›´ï¼š1-200
+	BYTE m_FrameBatterySum;
+	//å•ä½“ç”µæ± ç”µå‹	2*m,èŒƒå›´ï¼š0Vï½60.000V
+	vector<WORD> m_pSingleBatteryVoltage;
+} StruSubVoltage, *LPStruSubVoltage;
 
 /**
-* @brief StruVoltage
-*		³äµç´¢ÄÜ×°ÖÃµçÑ¹Êı¾İ¸ñÊ½
-*/
+ * @brief StruVoltage
+ *		å……ç”µå‚¨èƒ½è£…ç½®ç”µå‹æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruVoltage
 {
-	//×ÓÏµÍ³¸öÊı
-	BYTE					m_Num;
-	//µ¥¸ö×ÓÏµÍ³¼¯
-	vector<StruSubVoltage>	m_pElment;
-}StruVoltage, *LPStruVoltage;
-
+	//å­ç³»ç»Ÿä¸ªæ•°
+	BYTE m_Num;
+	//å•ä¸ªå­ç³»ç»Ÿé›†
+	vector<StruSubVoltage> m_pElment;
+} StruVoltage, *LPStruVoltage;
 
 /**
-* @brief StruSubTemperature
-*		³äµç´¢ÄÜ×ÓÏµÍ³ÎÂ¶ÈÊı¾İ¸ñÊ½
-*/
+ * @brief StruSubTemperature
+ *		å……ç”µå‚¨èƒ½å­ç³»ç»Ÿæ¸©åº¦æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruSubTemperature
 {
-	//ĞòºÅ
-	BYTE			m_Sequence;
-	//³äµç´¢ÄÜÎÂ¶ÈÌ½Õë¸öÊı N(hex)
-	WORD			m_ProbeNum;
-	//³äµç´¢ÄÜ×ÓÏµÍ³¸÷ÎÂ¶ÈÌ½Õë¼ì²âµ½µÄÎÂ¶ÈÖµ N
-	vector<BYTE>	m_TemperatureVec;
-}StruSubTemperaturea, *LPStruSubTemperature;
+	//åºå·
+	BYTE m_Sequence;
+	//å……ç”µå‚¨èƒ½æ¸©åº¦æ¢é’ˆä¸ªæ•° N(hex)
+	WORD m_ProbeNum;
+	//å……ç”µå‚¨èƒ½å­ç³»ç»Ÿå„æ¸©åº¦æ¢é’ˆæ£€æµ‹åˆ°çš„æ¸©åº¦å€¼ N
+	vector<BYTE> m_TemperatureVec;
+} StruSubTemperaturea, *LPStruSubTemperature;
 
 /**
-* @brief StruTemperature
-*		³äµç´¢ÄÜ×°ÖÃÎÂ¶ÈÊı¾İ¸ñÊ½
-*/
+ * @brief StruTemperature
+ *		å……ç”µå‚¨èƒ½è£…ç½®æ¸©åº¦æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruTemperature
 {
-	//×ÓÏµÍ³¸öÊı
-	BYTE						m_Num;
-	//ÃüÁî±êÊ¶
-	vector<StruSubTemperaturea>	m_pElment;
-}StruTemperature, *LPStruTemperature;
+	//å­ç³»ç»Ÿä¸ªæ•°
+	BYTE m_Num;
+	//å‘½ä»¤æ ‡è¯†
+	vector<StruSubTemperaturea> m_pElment;
+} StruTemperature, *LPStruTemperature;
 
 /**
-* @brief StruDate
-*		Ê±¼äĞÅÏ¢
-*/
+ * @brief StruDate
+ *		æ—¶é—´ä¿¡æ¯
+ */
 typedef struct tagStruDate
 {
-	//Äê
-	BYTE				m_Year;
-	//ÔÂ
-	BYTE				m_Mon;
-	//ÈÕ
-	BYTE				m_Day;
-	//Ê±
-	BYTE				m_Hour;
-	//·Ö
-	BYTE				m_Min;
-	//Ãë
-	BYTE				m_Sec;
-}StruDate, *LPStruDate;
+	//å¹´
+	BYTE m_Year;
+	//æœˆ
+	BYTE m_Mon;
+	//æ—¥
+	BYTE m_Day;
+	//æ—¶
+	BYTE m_Hour;
+	//åˆ†
+	BYTE m_Min;
+	//ç§’
+	BYTE m_Sec;
+} StruDate, *LPStruDate;
 
 /**
-* @brief StruVehicleLogin
-*		³µÁ¾µÇÈëÊı¾İ¸ñÊ½
-*/
+ * @brief StruVehicleLogin
+ *		è½¦è¾†ç™»å…¥æ•°æ®æ ¼å¼
+ */
 typedef struct tagStruVehicleLogin
 {
-	//Êı¾İ²É¼¯Ê±¼ä
-	BYTE				m_Time[6];
-	//µÇÈëÁ÷Ë®ºÅ
-	WORD				m_Seq;
-	//ICCID
-	BYTE				m_IccId[20];
-	//¿É³äµç´¢ÄÜ×ÓÏµÍ³¸öÊı n 0¡«250
-	BYTE				m_SubSystemCount;
-	//¿É³äµç´¢ÄÜ×ÓÏµÍ³±àÂë³¤¶È m ·¶Î§0¡«50
-	BYTE				m_CodeLen;
-	//¿É³äµç´¢ÄÜ×ÓÏµÍ³±àÂë n*m
-	vector<BYTE>		m_Code;
-}StruVehicleLogin, *LPStruVehicleLogin;
+	//æ•°æ®é‡‡é›†æ—¶é—´
+	BYTE m_Time[6];
+	//ç™»å…¥æµæ°´å·
+	WORD m_Seq;
+	// ICCID
+	BYTE m_IccId[20];
+	//å¯å……ç”µå‚¨èƒ½å­ç³»ç»Ÿä¸ªæ•° n 0ï½250
+	BYTE m_SubSystemCount;
+	//å¯å……ç”µå‚¨èƒ½å­ç³»ç»Ÿç¼–ç é•¿åº¦ m èŒƒå›´0ï½50
+	BYTE m_CodeLen;
+	//å¯å……ç”µå‚¨èƒ½å­ç³»ç»Ÿç¼–ç  n*m
+	vector<BYTE> m_Code;
+} StruVehicleLogin, *LPStruVehicleLogin;
 
-
-#pragma pack(pop)          //×÷ÓÃ£º»Ö¸´¶ÔÆë×´Ì¬
+#pragma pack(pop) //ä½œç”¨ï¼šæ¢å¤å¯¹é½çŠ¶æ€
 
 class CUtility
 {
 public:
-	//transform strings to hex
+	// transform strings to hex
 	static bool ConvertStr2Hex(const unsigned char *in, int ilen, string &out)
 	{
 		if (ilen == 0 || in == NULL)
@@ -473,15 +458,15 @@ public:
 			return false;
 		}
 		std::stringstream ss;
-		for (int i =0 ; i < ilen; i++)
+		for (int i = 0; i < ilen; i++)
 		{
-			//×Ö·û×ª»»³É16½øÖÆ´æ·ÅÔÚssÖĞ
-			ss << std::hex <<(in[i] >> 4) << (in[i] & 0x0f);
+			//å­—ç¬¦è½¬æ¢æˆ16è¿›åˆ¶å­˜æ”¾åœ¨ssä¸­
+			ss << std::hex << (in[i] >> 4) << (in[i] & 0x0f);
 		}
 		ss >> out;
 		return true;
 	}
-	//transform hex to strings
+	// transform hex to strings
 	static bool ConvertHex2Str(const unsigned char *in, int ilen, string &out)
 	{
 		if (ilen == 0 || ilen % 2 != 0 || in == NULL)
@@ -493,18 +478,18 @@ public:
 		int temp = 0;
 		for (int i = 0; i < ilen; i += 2)
 		{
-			//×Ö·û×ª»»³É16½øÖÆ´æ·ÅÔÚssÖĞ
+			//å­—ç¬¦è½¬æ¢æˆ16è¿›åˆ¶å­˜æ”¾åœ¨ssä¸­
 			s1 << std::hex << in[i] << in[i + 1];
-			//½«16½øÖÆ×Ö·ûÖØ¶¨Ïòµ½intÊı¾İÖĞ
+			//å°†16è¿›åˆ¶å­—ç¬¦é‡å®šå‘åˆ°intæ•°æ®ä¸­
 			s1 >> temp;
 			s1.clear();
-			//×Ö·û´®±£´æÊı¾İ
+			//å­—ç¬¦ä¸²ä¿å­˜æ•°æ®
 			out[i / 2] = temp;
 		}
 		return true;
 	}
 };
-#if 0
+#if 1
 #define DELEGATE
 #else
 #define GB32960

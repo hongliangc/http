@@ -23,7 +23,7 @@ using namespace _utility;
 
 void test_future()
 {
-	//std::launch::async Òì²½ÔÚĞÂµÄÏß³ÌÖĞÖ´ĞĞ
+	//std::launch::async å¼‚æ­¥åœ¨æ–°çš„çº¿ç¨‹ä¸­æ‰§è¡Œ
 	std::future<std::vector<int>> iotaFuture = std::async(std::launch::async,
 		[startArg = 1]() {
 		std::vector<int> numbers(25);
@@ -43,7 +43,7 @@ void test_future()
 	std::cout << '\n';
 
 
-	//std::launch::deferred ÑÓ³ÙÔÚµ±Ç°Ïß³ÌÖĞÖ´ĞĞ
+	//std::launch::deferred å»¶è¿Ÿåœ¨å½“å‰çº¿ç¨‹ä¸­æ‰§è¡Œ
 	std::future<int> sumFuture = std::async(std::launch::deferred, [&vec]() {
 		const auto sum = std::accumulate(vec.begin(), vec.end(), 0);
 		std::cout << "accumulate in: " << std::this_thread::get_id() << " id\n";
@@ -59,7 +59,7 @@ void test_future()
 
 /*//using CRTP to provide an "interface" for a set of child templates;
 and both the parent and the child are parametric in other template argument(s)
-ÆæÒìµİ¹éÄ£°åÄ£Ê½ (Curiously recurring template pattern)
+å¥‡å¼‚é€’å½’æ¨¡æ¿æ¨¡å¼ (Curiously recurring template pattern)
 */
 template <template <class> class DERIVED, class VALUE> 
 class base1 {
@@ -68,7 +68,7 @@ public:
 		printf("base1 do something\n");
 	}
 	void interface_do_something(VALUE v) {
-		//ÀàĞÍ×ª»»µÄÊ±ºòÄ£°å²ÎÊıDERIVEDĞèÒªexlicitµÄÖ¸¶¨£¬Ê¹ÓÃDERIVED<VALUE>
+		//ç±»å‹è½¬æ¢çš„æ—¶å€™æ¨¡æ¿å‚æ•°DERIVEDéœ€è¦exlicitçš„æŒ‡å®šï¼Œä½¿ç”¨DERIVED<VALUE>
 		static_cast<DERIVED<VALUE>*>(this)->do_something(v);
 	}
 };
@@ -81,7 +81,7 @@ public:
 	}
 };
 
-//derived1Ê¹ÓÃÄ£°åµÄÄ£°å±ÜÃâÁËÊ¹ÓÃderived1<int>
+//derived1ä½¿ç”¨æ¨¡æ¿çš„æ¨¡æ¿é¿å…äº†ä½¿ç”¨derived1<int>
 typedef base1<derived1, int> derived_t1;
 
 
@@ -151,7 +151,7 @@ public:
 /*//Templated functions are instantiated at the POI and can't be virtual 
 (what is the signature??How many vtable entries do you reserve?). 
 Templated functions are a compile-time mechanism, virtual functions a runtime one.
-Ä£°åº¯ÊıÊÇÒÔpoiÀàĞÍ½øĞĞ³õÊ¼»¯µÄ£¬²»ÄÜÎªĞéº¯Êı£¬Ä£°åº¯ÊıÊÇÒÀ¿¿±àÒëÊ±»úÖÆÉú³ÉµÄ£¬Ğéº¯ÊıÊÇÔËĞĞÆÚ
+æ¨¡æ¿å‡½æ•°æ˜¯ä»¥poiç±»å‹è¿›è¡Œåˆå§‹åŒ–çš„ï¼Œä¸èƒ½ä¸ºè™šå‡½æ•°ï¼Œæ¨¡æ¿å‡½æ•°æ˜¯ä¾é ç¼–è¯‘æ—¶æœºåˆ¶ç”Ÿæˆçš„ï¼Œè™šå‡½æ•°æ˜¯è¿è¡ŒæœŸ
 */
 int test_template_override()
 {
@@ -194,7 +194,7 @@ void test_template_construct()
 	func2(d, v);
 }
 
-//²âÊÔcondition_variable µÄLost Wakeup and Spurious Wakeup
+//æµ‹è¯•condition_variable çš„Lost Wakeup and Spurious Wakeup
 
 #include <condition_variable>
 #include <iostream>
@@ -210,12 +210,12 @@ void waitingForWork() {
 	std::cout << "Waiting " << std::endl;
 	std::unique_lock<std::mutex> lck(mutex_);
 	//condVar.wait(lck, [] { return dataReady.load(); });   // (1)
-	//µÈ¼ÛÓÚÏÂÃæ£¬µ«ÊÇÎªÁËÑÚÊÎ¼ÓÁË¸öÑÓÊ±
+	//ç­‰ä»·äºä¸‹é¢ï¼Œä½†æ˜¯ä¸ºäº†æ©é¥°åŠ äº†ä¸ªå»¶æ—¶
 	while (![] { return dataReady.load(); }())
 	{
-		//ÌØÒâÌí¼Ó1sÑÓÊ±£¬²âÊÔÈç¹ûdataReady²»¼ÓËø±£»¤£¬¿ÉÒÔÔì³ÉËÀËø£¬
-		//ÒòÎªnotify_one·¢ËÍºó²»»á¼ÇÒä£¬Èç¹û½ÓÊÜÏß³Ì²»´¦ÓÚwait×´Ì¬£¬¾Í»á¶ªÊ§¸ÃĞÅºÅ
-		//Í¬Ê±dataReadyÔÚ½øÈëµ½¸Ã³ö±ä³¤ÁËtrue
+		//ç‰¹æ„æ·»åŠ 1så»¶æ—¶ï¼Œæµ‹è¯•å¦‚æœdataReadyä¸åŠ é”ä¿æŠ¤ï¼Œå¯ä»¥é€ æˆæ­»é”ï¼Œ
+		//å› ä¸ºnotify_oneå‘é€åä¸ä¼šè®°å¿†ï¼Œå¦‚æœæ¥å—çº¿ç¨‹ä¸å¤„äºwaitçŠ¶æ€ï¼Œå°±ä¼šä¸¢å¤±è¯¥ä¿¡å·
+		//åŒæ—¶dataReadyåœ¨è¿›å…¥åˆ°è¯¥å‡ºå˜é•¿äº†true
 		std::cout << "Waiting 111" << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		std::cout << "Waiting 222" << std::endl;
@@ -228,11 +228,11 @@ void setDataReady() {
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	{
 		//std::unique_lock<std::mutex> lck(mutex_); 
-		//!!!!!!!!!!!! Èç¹ûdataReady ²»ÔÚËøÏÂÃæ£¬¿ÉÄÜÔì³ÉcondVar.waitËÀËø !!!!!!!!!!!!!!!!!!!!!!!
+		//!!!!!!!!!!!! å¦‚æœdataReady ä¸åœ¨é”ä¸‹é¢ï¼Œå¯èƒ½é€ æˆcondVar.waitæ­»é” !!!!!!!!!!!!!!!!!!!!!!!
 		dataReady = true;
 	}
 	std::cout << "Data prepared" << std::endl;
-	//notify_oneÊÇÏß³Ì°²È«µÄ£¬¿ÉÒÔ²»ÓÃËø±£»¤
+	//notify_oneæ˜¯çº¿ç¨‹å®‰å…¨çš„ï¼Œå¯ä»¥ä¸ç”¨é”ä¿æŠ¤
 	condVar.notify_one();
 	std::cout << "Data prepared end" << std::endl;
 }
@@ -252,15 +252,15 @@ void condtion_var_test() {
 }
 
 
-//²âÊÔÊÇÒ»¸öÀàĞÍÎªÄ³ÖÖÀàĞÍµÄÆ«ÌØ»¯ÀàĞÍ
+//æµ‹è¯•æ˜¯ä¸€ä¸ªç±»å‹ä¸ºæŸç§ç±»å‹çš„åç‰¹åŒ–ç±»å‹
 template<typename Test, template<typename...> class Ref>
 struct is_specialization : std::false_type {};
 
-/*Æ«ÌØ»¯£¬×Ô¼ºµÄÄ£°å²ÎÊı×Ô¶¨Òå£¬Ê¹ÓÃµÄÊ±ºòÈ¥ÅĞ¶ÏÊÇ·ñÆ¥Åä
-	Ref±êÊ¶Îª»ù´¡µÄÄ£°å£¬ArgsÎªÄ£°å²ÎÊı£¬ÔÚÌØÀı»¯ÖĞ
-	Ref<Args...>±íÊ¾ÎªÆ«ÌØ»¯µÄÍ¨ÓÃÀàĞÍ¡£
-	ÀıÈçRefÎªvector£¬ArgsÎªint£¬´ËÊ±Ref<Args...>¾ÍÊÇ
-	vector<int>£¬Âú×ãÆ«ÌØ»¯Ìõ¼ş
+/*åç‰¹åŒ–ï¼Œè‡ªå·±çš„æ¨¡æ¿å‚æ•°è‡ªå®šä¹‰ï¼Œä½¿ç”¨çš„æ—¶å€™å»åˆ¤æ–­æ˜¯å¦åŒ¹é…
+	Refæ ‡è¯†ä¸ºåŸºç¡€çš„æ¨¡æ¿ï¼ŒArgsä¸ºæ¨¡æ¿å‚æ•°ï¼Œåœ¨ç‰¹ä¾‹åŒ–ä¸­
+	Ref<Args...>è¡¨ç¤ºä¸ºåç‰¹åŒ–çš„é€šç”¨ç±»å‹ã€‚
+	ä¾‹å¦‚Refä¸ºvectorï¼ŒArgsä¸ºintï¼Œæ­¤æ—¶Ref<Args...>å°±æ˜¯
+	vector<int>ï¼Œæ»¡è¶³åç‰¹åŒ–æ¡ä»¶
 */
 // template<template<typename...> class Ref, typename... Args>
 // struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
@@ -281,7 +281,7 @@ void test_specializaton()
 
 #ifndef _WIN32 
 
-/*! ²âÊÔloacltime_rµ¼ÖÂËÀËø*/
+/*! æµ‹è¯•loacltime_rå¯¼è‡´æ­»é”*/
 void *mytest(void *arg)
 {
 	pthread_detach(pthread_self());
@@ -316,7 +316,7 @@ int test_localtime_r()
 	pthread_cancel(tid[3]);
 
 	while (1)
-		sleep(100000000);
+		sleep(5);
 }
 #endif
 
@@ -344,34 +344,34 @@ public:
 template<class T> T &TSingleton_<T>::instance = TSingleton_<T>::Create();
 
 class CArchiveA{};
-/*!²âÊÔÀàĞÍ°ó¶¨£¬CArchiveAÀàĞÍÆ«ÌØ»¯ºó¿ÉÒÔ°ó¶¨ÈÎÒâÆäËü×¢²áµÄÀàĞÍT */
-/*! ÓÃÓÚ°ïÖú°ÚÍÑ²ÎÊıÒÀÀµ£¬²éÕÒ·¢ÏÖÇ±ÔÚµÄÖØÔØ*/
+/*!æµ‹è¯•ç±»å‹ç»‘å®šï¼ŒCArchiveAç±»å‹åç‰¹åŒ–åå¯ä»¥ç»‘å®šä»»æ„å…¶å®ƒæ³¨å†Œçš„ç±»å‹T */
+/*! ç”¨äºå¸®åŠ©æ‘†è„±å‚æ•°ä¾èµ–ï¼ŒæŸ¥æ‰¾å‘ç°æ½œåœ¨çš„é‡è½½*/
 struct tag_ {};
 
-/*!ÓÃ×öinstantiate_bindÆ«ÌØ»¯µÄ·µ»ØÀàĞÍ£¬µ±±àÒëÆ÷Ñ°ÔÚinstantiate_bindµÄÖØÔØÀàĞÍÊ±£¬
-Ëü½«±»Ç¿ÖÆÊµÀı»¯Õâ¸ö½á¹¹£¬¼´Ê¹Ëü²»ÊÇÓĞĞ§µÄÖØÔØ*/
+/*!ç”¨åšinstantiate_bindåç‰¹åŒ–çš„è¿”å›ç±»å‹ï¼Œå½“ç¼–è¯‘å™¨å¯»åœ¨instantiate_bindçš„é‡è½½ç±»å‹æ—¶ï¼Œ
+å®ƒå°†è¢«å¼ºåˆ¶å®ä¾‹åŒ–è¿™ä¸ªç»“æ„ï¼Œå³ä½¿å®ƒä¸æ˜¯æœ‰æ•ˆçš„é‡è½½*/
 template <class Archive, class T>
 struct bind_support;
 
-/*!º¯ÊıÄ£°åÔ­ĞÍ*/
+/*!å‡½æ•°æ¨¡æ¿åŸå‹*/
 template<class T>
 void instantiate_bind(T*, int/*, tag_*/) {}
 
-/*! CArchiveAµÄÆ«ÌØ»¯Ä£°å·½·¨*/
+/*! CArchiveAçš„åç‰¹åŒ–æ¨¡æ¿æ–¹æ³•*/
 template<class T>
 typename bind_support<CArchiveA, T>::type 
 instantiate_bind(T*, CArchiveA*/*, tag_*/);
 
-/*! ÀàĞÍ°ó¶¨*/
+/*! ç±»å‹ç»‘å®š*/
 template<class T>
 struct init_bind;
 
-/*Ã¿´Î°ó¶¨Ò»¸öÀàĞÍ T ¾Í»á¶à¸öÊµÀı»¯µÄ¶ÔÏóbind2Archive<T> b,
-×îÖÕ¾ÍÊÇ»á³öÏÖ¶àµÄÖØÔØ£¬±ÈÈç:
+/*æ¯æ¬¡ç»‘å®šä¸€ä¸ªç±»å‹ T å°±ä¼šå¤šä¸ªå®ä¾‹åŒ–çš„å¯¹è±¡bind2Archive<T> b,
+æœ€ç»ˆå°±æ˜¯ä¼šå‡ºç°å¤šçš„é‡è½½ï¼Œæ¯”å¦‚:
 instantiate_bind(bindA*, 0)
 instantiate_bind(bindB*, 0),
-µ±±àÒëÆ÷Ñ°ÔÚinstantiate_bindµÄÖØÔØÀàĞÍÊ±£¬ÆäÖĞµÄÒ»¸öÆ«ÌØ»¯µÄ·µ»ØÀàĞÍÊÇ bind_support<CArchiveA, T>::type£¬
-bind_support½«±»Ç¿ÖÆÊµÀı»¯Õâ¸ö½á¹¹£¬ÆäÖĞµÄ·½·¨±ØĞëÊÇvirtual²ÅÄÜ±£ÕÏ·½·¨±»ÊµÀı»¯£¬¼´Ê¹²»±»µ÷ÓÃ
+å½“ç¼–è¯‘å™¨å¯»åœ¨instantiate_bindçš„é‡è½½ç±»å‹æ—¶ï¼Œå…¶ä¸­çš„ä¸€ä¸ªåç‰¹åŒ–çš„è¿”å›ç±»å‹æ˜¯ bind_support<CArchiveA, T>::typeï¼Œ
+bind_supportå°†è¢«å¼ºåˆ¶å®ä¾‹åŒ–è¿™ä¸ªç»“æ„ï¼Œå…¶ä¸­çš„æ–¹æ³•å¿…é¡»æ˜¯virtualæ‰èƒ½ä¿éšœæ–¹æ³•è¢«å®ä¾‹åŒ–ï¼Œå³ä½¿ä¸è¢«è°ƒç”¨
 */
 #define BIND2ARCHIVES(...)											\
 	template<>															\
@@ -387,15 +387,15 @@ bind_support½«±»Ç¿ÖÆÊµÀı»¯Õâ¸ö½á¹¹£¬ÆäÖĞµÄ·½·¨±ØĞëÊÇvirtual²ÅÄÜ±£ÕÏ·½·¨±»ÊµÀı»¯£
 
 
 
-/*Ìá¹©ÀàĞÍ×¢²á·½·¨£¬¿ÉÒÔ°ó¶¨µ½CArchiveA*/
+/*æä¾›ç±»å‹æ³¨å†Œæ–¹æ³•ï¼Œå¯ä»¥ç»‘å®šåˆ°CArchiveA*/
 template<class T>
 struct bind2Archive
 {
 	void bind(std::false_type) const
 	{
-		/*!Ô­Ê¼Ä£°åÀàĞÍµÄµÚ2¸ö²ÎÊıÊ±int£¬ÏÖÔÚµ÷ÓÃµÚ2²ÎÊıÎª0×ÜÊÇintÀàĞÍ´«µİ£¬Õâ½«ÓÀÔ¶ÊÇ×îºÃµÄÖØÔØ£¬
-		ÆäËûÖØÔØ¶¼ÊÇ½ÓÊÜÖ¸Õë×ª»»µ½ArchiveÀàĞÍ£¬ÆäÓÅÏÈ¼¶µÍÓÚint*/
-		/*µ÷ÓÃµÄÊ±ºòĞèÒªÊµÀı»¯µÄ²ÎÊı¶ÔÏó£¬²»ÄÜÖ±½ÓÊ¹ÓÃT*£¬ÓÃnullptrĞèÒª×ª»»³ÉÊµÀı¶ÔÏó*/
+		/*!åŸå§‹æ¨¡æ¿ç±»å‹çš„ç¬¬2ä¸ªå‚æ•°æ—¶intï¼Œç°åœ¨è°ƒç”¨ç¬¬2å‚æ•°ä¸º0æ€»æ˜¯intç±»å‹ä¼ é€’ï¼Œè¿™å°†æ°¸è¿œæ˜¯æœ€å¥½çš„é‡è½½ï¼Œ
+		å…¶ä»–é‡è½½éƒ½æ˜¯æ¥å—æŒ‡é’ˆè½¬æ¢åˆ°Archiveç±»å‹ï¼Œå…¶ä¼˜å…ˆçº§ä½äºint*/
+		/*è°ƒç”¨çš„æ—¶å€™éœ€è¦å®ä¾‹åŒ–çš„å‚æ•°å¯¹è±¡ï¼Œä¸èƒ½ç›´æ¥ä½¿ç”¨T*ï¼Œç”¨nullptréœ€è¦è½¬æ¢æˆå®ä¾‹å¯¹è±¡*/
 		instantiate_bind(static_cast<T*>(nullptr) , 0/*, tag_{}*/);
 	}
 	void bind(std::true_type) const {}
@@ -409,7 +409,7 @@ struct bind2Archive
 
 
 
-/*!´æ´¢°ó¶¨¶ÔÏó*/
+/*!å­˜å‚¨ç»‘å®šå¯¹è±¡*/
 template<class Archive>
 struct Storage
 {
@@ -426,7 +426,7 @@ struct StorageBind
 	StorageBind(){
 		printf("StorageBind*********\n");
 		auto & map = TSingleton_<Storage<Archive> >::GetInstance().map;
-		/*! Í¨¹ıtypeid»ñÈ¡type_info,È»ºó½«type_info¿ÉÒÔ´æ´¢ÔÚtype_indexÖĞ*/
+		/*! é€šè¿‡typeidè·å–type_info,ç„¶åå°†type_infoå¯ä»¥å­˜å‚¨åœ¨type_indexä¸­*/
 		auto key = std::type_index(typeid(T));
 		if (map.find(key) != map.end())
 			return;
@@ -457,12 +457,12 @@ struct create_bind
 template <void(*)()>
 struct instantiate_function_ {};
 
-/*!µ±±àÒëÆ÷Ñ°ÔÚinstantiate_bindµÄÖØÔØÀàĞÍÊ±£¬Ëü½«±»Ç¿ÖÆÊµÀı»¯Õâ¸ö½á¹¹*/
+/*!å½“ç¼–è¯‘å™¨å¯»åœ¨instantiate_bindçš„é‡è½½ç±»å‹æ—¶ï¼Œå®ƒå°†è¢«å¼ºåˆ¶å®ä¾‹åŒ–è¿™ä¸ªç»“æ„*/
 template<class Archive, class T>
 struct bind_support
 {
 #if defined(_MSC_VER) && !defined(__clang__)
-	/*!windowsÏÂÃæ±ØĞëÊÇĞéº¯Êı²ÅÄÜÔÚpre execute mainÇ°ÊµÀı»¯*/
+	/*!windowsä¸‹é¢å¿…é¡»æ˜¯è™šå‡½æ•°æ‰èƒ½åœ¨pre execute mainå‰å®ä¾‹åŒ–*/
 	virtual void /*DLL_EXPORT_*/ instantiate();
 #else // clang or gcc
 	static void /*DLL_EXPORT_*/ instantiate();
@@ -470,7 +470,7 @@ struct bind_support
 #endif
 };
 
-/*ÊµÀı»¯ÊµÏÖ*/
+/*å®ä¾‹åŒ–å®ç°*/
 template<class Archive, class T>
 /*DLL_EXPORT_*/ void bind_support<Archive,T>::instantiate()
 {

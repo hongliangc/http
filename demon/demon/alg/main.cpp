@@ -172,7 +172,7 @@ TEST_CASE("enable_shared_from_this")
 #else
 	TaskQueue taskqueue;
 	{
-		/*ÄÚ´æĞ¹Â©*/
+		/*å†…å­˜æ³„æ¼*/
 		auto work = std::make_shared<Work>();
 		std::cout << "begin  use count:" << work.use_count() << endl;
 		for (auto count = 0; count < 10; count++)
@@ -186,7 +186,7 @@ TEST_CASE("enable_shared_from_this")
 	}
 
 	{
-		/*ÎŞÄÚ´æĞ¹Â©Ä£Ê½*/
+		/*æ— å†…å­˜æ³„æ¼æ¨¡å¼*/
 		auto work = std::make_shared<Work>();
 		std::cout << "begin  use count:" << work.use_count() << endl;
 		for (auto count = 0; count < 10; count++)
@@ -347,7 +347,7 @@ TEST_CASE("OPENSSL_RSA")
 	RSA_free(rsa);
 }
 
-
+#if 0
 TEST_CASE("OPENSSL_AES")
 {
 #define LEN 1024
@@ -376,7 +376,7 @@ TEST_CASE("OPENSSL_AES")
 		unsigned char *input = new unsigned char[len / 2];
 		memcpy(cipher, content.data(), len);
 
-		/*!½âÃÜ*/
+		/*!è§£å¯†*/
 		AES_set_decrypt_key(key, 128, &de_key);
 		for (int i = 0; i < len; i += AES_BLOCK_SIZE)
 		{
@@ -391,15 +391,15 @@ TEST_CASE("OPENSSL_AES")
 				0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
 
 
-		//int length = ((strlen(input) + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE)*AES_BLOCK_SIZE;  //¶ÔÆë·Ö×é
-		/*!¼ÓÃÜ*/
+		//int length = ((strlen(input) + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE)*AES_BLOCK_SIZE;  //å¯¹é½åˆ†ç»„
+		/*!åŠ å¯†*/
 		AES_set_encrypt_key(key, 128, &en_key);
 		for (int i = 0; i < LEN; i += AES_BLOCK_SIZE)
 		{
 			AES_ecb_encrypt(input + i, cipher + i, &en_key, AES_ENCRYPT);
 		}
 
-		/*!½âÃÜ*/
+		/*!è§£å¯†*/
 		AES_set_decrypt_key(key, 128, &de_key);
 		//CHECK_EQ(0, memcmp((void*)&de_key, (void*)&en_key, sizeof(AES_KEY)));
 		memcpy(cipher1, cipher, LEN);
@@ -411,6 +411,7 @@ TEST_CASE("OPENSSL_AES")
 	}
 	
 }
+#endif
 
 
 TEST_CASE("RSA_1")
@@ -599,7 +600,7 @@ std::mutex mtx;
 std::condition_variable cv;
 int cargo = 0;
 
-// Ïû·ÑÕßÏß³Ì.
+// æ¶ˆè´¹è€…çº¿ç¨‹.
 void consume(int n)
 {
 	for (int i = 0; i < n; ++i) {
@@ -613,8 +614,8 @@ void consume(int n)
 
 TEST_CASE("test_condition")
 {
-	std::thread consumer_thread(consume, 10); // Ïû·ÑÕßÏß³Ì.
-											  // Ö÷Ïß³ÌÎªÉú²úÕßÏß³Ì, Éú²ú 10 ¸öÎïÆ·.
+	std::thread consumer_thread(consume, 10); // æ¶ˆè´¹è€…çº¿ç¨‹.
+											  // ä¸»çº¿ç¨‹ä¸ºç”Ÿäº§è€…çº¿ç¨‹, ç”Ÿäº§ 10 ä¸ªç‰©å“.
 	for (int i = 0; i < 10; ++i) {
 		while ([]{ return cargo != 0; }())
 			std::this_thread::yield();
@@ -682,7 +683,7 @@ TEST_CASE("test localtime_r")
 		printf("222 time %lld,%lld \n", t, timer.to_time());
 		CHECK_EQ(t, timer.to_time());
 	}
-	//²âÊÔlocaltime¶àÏß³Ìdate raceµ¼ÖÂÊı¾İ²»°²È«
+	//æµ‹è¯•localtimeå¤šçº¿ç¨‹date raceå¯¼è‡´æ•°æ®ä¸å®‰å…¨
 #ifndef _WIN32
 	test_localtime_r();
 #endif
@@ -772,7 +773,7 @@ void test_mutex(int i)
 
 TEST_CASE("atomic_and_mutex")
 {
-	//²âÊÔÔ­×ÓËø£¨spin lock£©ºÍ»¥³âËøµÄĞ§ÂÊ£¬
+	//æµ‹è¯•åŸå­é”ï¼ˆspin lockï¼‰å’Œäº’æ–¥é”çš„æ•ˆç‡ï¼Œ
 	{
 		gCritical = 0;
 		CDataTime timer;
@@ -877,7 +878,7 @@ TEST_CASE("register_relationship")
 	CHECK_EQ(traits::has_member_serialize<base, TBinaryArchive>::value, false);
 	CHECK_EQ(traits::has_member_serialize<Hello, TBinaryArchive>::value,true);
 	//r1 = std::is_base_of<BinaryData<char>, <BinaryData<char> >>::value;
-	//²âÊÔBinaryData<char>ÊÇ·ñÎªBinaryData Æ«ÌØ»¯ÀàĞÍ
+	//æµ‹è¯•BinaryData<char>æ˜¯å¦ä¸ºBinaryData åç‰¹åŒ–ç±»å‹
 	CHECK_EQ(is_specialization<BinaryData<char>, BinaryData>::value,true);
 
 
@@ -913,7 +914,7 @@ TEST_CASE("register_relationship")
 	const auto baseKey12 = std::type_index(ptrinfo);
 	const auto baseKey112 = std::type_index(ptrinfo1);
 	const auto derivedKey11 = std::type_index(typeid(decltype(*pReissue)));
-	const auto baseKey11 = std::type_index(typeid(decltype(*pReissuebase)));//»ùÀà´íÎóµÄ×ª»»£¬Ã»ÓĞ¿¼ÂÇrtti£¬×îÖÕÀàĞÍÊÇ»ùÀà²»ÊÇ×ÓÀà
+	const auto baseKey11 = std::type_index(typeid(decltype(*pReissuebase)));//åŸºç±»é”™è¯¯çš„è½¬æ¢ï¼Œæ²¡æœ‰è€ƒè™‘rttiï¼Œæœ€ç»ˆç±»å‹æ˜¯åŸºç±»ä¸æ˜¯å­ç±»
 	if (derivedKey11 == baseKey11)
 	{
 		printf("type index 22222\n");
@@ -982,7 +983,7 @@ TEST_CASE("test_stringstream")
 	printf("\n");
 }
 
-//²âÊÔÌõ¼ş±äÁ¿Ğé¼Ù»½ĞÑºÍ»½ĞÑ¶ªÊ§
+//æµ‹è¯•æ¡ä»¶å˜é‡è™šå‡å”¤é†’å’Œå”¤é†’ä¸¢å¤±
 TEST_CASE("Condition_var_test")
 {
 	//condtion_var_test();
@@ -1032,7 +1033,7 @@ void CheckVariable1(BinaryData<T> &t)
 	using TT = typename std::remove_pointer<T>::type;
 	using TT1 = typename std::remove_pointer<typename std::remove_reference<T>::type>::type;
 	using TT2 = typename std::remove_all_extents<typename std::remove_reference<T>::type>::type;
-	//ÏÈÈ¥ÒıÓÃ£¬È»ºóÈ¥µôÊı×é£¬×îºóÈ¥µôÖ¸Õë
+	//å…ˆå»å¼•ç”¨ï¼Œç„¶åå»æ‰æ•°ç»„ï¼Œæœ€åå»æ‰æŒ‡é’ˆ
 	using TT3 = typename std::remove_pointer<typename std::remove_all_extents<typename std::remove_reference<T>::type>::type>::type;
 	if (std::is_same<typename std::decay<T>::type, int*>::value)
 	{
@@ -1131,7 +1132,8 @@ template <class T, class ArchiveType, std::enable_if_t<std::is_array<T>::value>*
 void ProcessImp(T &t, ArchiveType &a)
 {
 	printf("22222\n");
-}
+}
+
 
 
 typedef struct tagStrucTest
@@ -1200,10 +1202,10 @@ TEST_CASE("TRAITS")
 	std::stringstream stream;
 	TBinaryArchive wArchive(eSerializeWrite, stream, Serialize_::TBinaryArchive::Options::BigEndian());
 	using ArchiveType = decltype(wArchive);
-	//ÊÇ·ñÖ§³ÖÊı×éĞòÁĞ»¯ºÍpodÀàĞÍĞòÁĞ»¯
+	//æ˜¯å¦æ”¯æŒæ•°ç»„åºåˆ—åŒ–å’Œpodç±»å‹åºåˆ—åŒ–
 	bool ret1 = traits::has_serialize<T, TBinaryArchive>::value;
 	bool ret2 = traits::has_serialize_array<T, TBinaryArchive>::value;
-	//ÀàĞÍ¹ıÂË
+	//ç±»å‹è¿‡æ»¤
 	ProcessImp(a, wArchive);
 	int arr[2] = { 1,2 };
 	ProcessImp(arr, wArchive);
@@ -1212,20 +1214,20 @@ TEST_CASE("TRAITS")
 	bool ret7 = traits::has_serialize<T1, TBinaryArchive>::value;
 	bool ret8 = traits::has_serialize_array<T1, TBinaryArchive>::value;
 
-	//¼ì²âÊÇ·ñÓĞsave·½·¨
+	//æ£€æµ‹æ˜¯å¦æœ‰saveæ–¹æ³•
 	bool ret3 = has_non_save_imp<T, TBinaryArchive>::value;
-	//¼ì²âÊÇ·ñÓĞhello·½·¨
+	//æ£€æµ‹æ˜¯å¦æœ‰helloæ–¹æ³•
 	bool ret4 = has_non_serialize_imp<T>::value;
 	bool ret5 = has_non_serialize_imp<test0>::value;
 	bool ret6 = has_non_serialize_imp<test1>::value;
 
-	//ÊÇ·ñÖ§³ÖÀà³ÉÔ±º¯ÊıĞòÁĞ»¯
+	//æ˜¯å¦æ”¯æŒç±»æˆå‘˜å‡½æ•°åºåˆ—åŒ–
 	StrucTest struTest;
 	bool ret10 = traits::has_member_serialize<TBinaryArchive, StrucTest>::value;
 	bool ret11 = traits::has_member_serialize<TBinaryArchive, StrucTest1>::value;
 	traits::access::member_serialize(wArchive, struTest);
 
-	//¼ì²âÊÇ·ñÓĞ³ÉÔ±º¯Êı
+	//æ£€æµ‹æ˜¯å¦æœ‰æˆå‘˜å‡½æ•°
 	auto ret12 = has_serialize1<StrucTest, void(TBinaryArchive)>::value;
 	auto ret13 = has_serialize1<StrucTest1, void(TBinaryArchive)>::value;
 	//static_assert(std::is_same<decltype(test<test0>::fun(), 3.1), double>::value, "Will not fire");
@@ -1514,7 +1516,7 @@ type_name()
 
 // overloads
 
-/* ²âÊÔstd::move(½«×óÖµ×ª»¯ÎªÓÒÖµ) ºÍstd::forwad */
+/* æµ‹è¯•std::move(å°†å·¦å€¼è½¬åŒ–ä¸ºå³å€¼) å’Œstd::forwad */
 void overloaded(int &arg) { std::cout << "by lvalue\n"; }
 void overloaded(int const &arg) { std::cout << "by const lvalue\n"; }
 void overloaded(int && arg) { std::cout << "by rvalue\n"; }
@@ -1526,7 +1528,7 @@ void forwarding(t && arg) {
 	//type_name<decltype(declval<t>())>();
 	type_name<decltype(arg)>();
 	std::cout << "via std::forward: ";
-	//×ª·¢ĞèÒªÔÚÄ£°åT&& ÏÂÊ¹ÓÃ£¬·ñÔò·µ»ØÖµÊÇrvalue
+	//è½¬å‘éœ€è¦åœ¨æ¨¡æ¿T&& ä¸‹ä½¿ç”¨ï¼Œå¦åˆ™è¿”å›å€¼æ˜¯rvalue
 	overloaded(std::forward< t >(arg));
 	std::cout << "via std::move: ";
 	overloaded(std::move(arg)); // conceptually this would invalidate arg
@@ -1542,8 +1544,8 @@ void _test_forward() {
 	forwarding(x);
 
 	std::cout << "333333333 wrong usage of std::forward\n";
-	/*´íÎóÊ¹ÓÃ²»ÄÜÍêÃÀ×ª·¢£¬´ËÊ±Ö»ÊÇ×ª»»³Érvalue£¬²»ÄÜÍêÃÀ×ª·¢
-	ÕıÈ·µÄÊ¹ÓÃ·½Ê½Ó¦¸ÃÊÇÈçÏÂ
+	/*é”™è¯¯ä½¿ç”¨ä¸èƒ½å®Œç¾è½¬å‘ï¼Œæ­¤æ—¶åªæ˜¯è½¬æ¢æˆrvalueï¼Œä¸èƒ½å®Œç¾è½¬å‘
+	æ­£ç¡®çš„ä½¿ç”¨æ–¹å¼åº”è¯¥æ˜¯å¦‚ä¸‹
 	template<T>
 	void foo(T &&t)
 	{
@@ -1562,10 +1564,10 @@ TEST_CASE("Reference_collapsing")
 	auto ret1 = std::is_same< int &, decltype((i)) >::value;
 	//xvalue
 	auto ret2 = std::is_same< int &&, decltype(std::move(i))>::value;
-	//if T is prvalue, decltype return T(´¿ÓÒÖµÖ±½Ó·µ»Ø±¾ÉíÀàĞÍ)
+	//if T is prvalue, decltype return T(çº¯å³å€¼ç›´æ¥è¿”å›æœ¬èº«ç±»å‹)
 	auto ret3 = std::is_same< int &&, decltype(5)>::value;
 	auto ret3_0 = std::is_same< int, decltype(5)>::value;
-	//std::foward»á½«ÓÒÖµ×ª»¯Îª×óÖµ
+	//std::fowardä¼šå°†å³å€¼è½¬åŒ–ä¸ºå·¦å€¼
 	auto ret3_1 = std::is_same< int &&, decltype(std::forward<int>(5))>::value;
 	overloaded(i);
 	overloaded(std::forward<int>(i));
@@ -1573,7 +1575,7 @@ TEST_CASE("Reference_collapsing")
 	overloaded(5);
 	_test_forward();
 
-	/*declval add_rvalue_reference(·µ»ØÓÒÖµÒıÓÃ)
+	/*declval add_rvalue_reference(è¿”å›å³å€¼å¼•ç”¨)
 		T   -> T&&
 		T&	-> T& &&, T&
 		T&& -> T&& &&,T&& 
@@ -1600,14 +1602,14 @@ void funA(std::tuple<Args...> &&args){}
 template<typename T>
 void funB(T&& t)
 {
-	/*!std::decay_t ½«×óÖµ×ª»¯ÎªÔ­Ê¼ÀàĞÍ,Í¨¹ıstd::forward×ª·¢±ä³ÉÓÒÖµ*/
+	/*!std::decay_t å°†å·¦å€¼è½¬åŒ–ä¸ºåŸå§‹ç±»å‹,é€šè¿‡std::forwardè½¬å‘å˜æˆå³å€¼*/
 	funA(std::forward<std::decay_t<T>>(t));
 }
 
 template<typename T>
 void funC(T&& t)
 {
-	/*!std::move ½«×óÖµ×ª»¯ÎªÓÒÖµÓ¦ÓÃ*/
+	/*!std::move å°†å·¦å€¼è½¬åŒ–ä¸ºå³å€¼åº”ç”¨*/
 	funA(std::move<T>(t));
 }
 
@@ -1655,15 +1657,15 @@ TEST_CASE("DATA_RACES")
 		struct tm *t1_tm = localtime(&t1);
 		cout << "before t1 tm:" << asctime(t1_tm) << endl;
 
-		//ÒòÎªlocaltime·µ»ØµÄ½á¹ûÊÇ´æ´¢ÔÚÆäÉêÇëµÄÄÚ´æÉÏµÄ£¬¶à´Îµ÷ÓÃlocaltime»áµ¼ÖÂÉÏ´Î´æ´¢µÄÊı¾İ±»¸²¸Ç
+		//å› ä¸ºlocaltimeè¿”å›çš„ç»“æœæ˜¯å­˜å‚¨åœ¨å…¶ç”³è¯·çš„å†…å­˜ä¸Šçš„ï¼Œå¤šæ¬¡è°ƒç”¨localtimeä¼šå¯¼è‡´ä¸Šæ¬¡å­˜å‚¨çš„æ•°æ®è¢«è¦†ç›–
 		struct tm* t2_tm = localtime(&t2);
 		cout << "after t1 tm:" << asctime(t1_tm) << endl;
 		cout << "after t2 tm:" << asctime(t2_tm) << endl;
 	}
 
 	{
-		/*//WindowsÏÂ£¬localtime´Ëº¯ÊıÊÇÏß³Ì°²È«µÄ,Õâ¸öº¯Êı¶¼»áÎªÃ¿Ò»¸öÏß³Ì·ÖÅäÒ»¸öµ¥¶ÀµÄtm½á¹¹Ìå¡£
-			POSIXÏÂ ¾Í²»ÊÇÏß³Ì°²È«µÄ¡£Õâ¸öº¯ÊıÄÚ²¿Ê¹ÓÃÁËÒ»¸ö¾²Ì¬tm½á¹¹Ìå£¬Ã¿¸ö·ÃÎÊËüµÄº¯Êı¶¼»áĞŞ¸ÄÕâ¸öÖµ*/
+		/*//Windowsä¸‹ï¼Œlocaltimeæ­¤å‡½æ•°æ˜¯çº¿ç¨‹å®‰å…¨çš„,è¿™ä¸ªå‡½æ•°éƒ½ä¼šä¸ºæ¯ä¸€ä¸ªçº¿ç¨‹åˆ†é…ä¸€ä¸ªå•ç‹¬çš„tmç»“æ„ä½“ã€‚
+			POSIXä¸‹ å°±ä¸æ˜¯çº¿ç¨‹å®‰å…¨çš„ã€‚è¿™ä¸ªå‡½æ•°å†…éƒ¨ä½¿ç”¨äº†ä¸€ä¸ªé™æ€tmç»“æ„ä½“ï¼Œæ¯ä¸ªè®¿é—®å®ƒçš„å‡½æ•°éƒ½ä¼šä¿®æ”¹è¿™ä¸ªå€¼*/
 		cout << "************ Multiple threads invoking the same function can cause concurrency problems" << endl;
 		time_t  t1 = time(nullptr);
 		struct tm *t1_tm = localtime(&t1);
@@ -1774,7 +1776,7 @@ TEST_CASE("TQUEUE_TEST")
 // 				printf("it cost:%lldms to load data!\n", std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1));
 // 			}
 			{
-				//¶ş·Ö·¨½øĞĞÊı¾İ²éÕÒ
+				//äºŒåˆ†æ³•è¿›è¡Œæ•°æ®æŸ¥æ‰¾
 				auto t1 = std::chrono::high_resolution_clock::now();
 				int r = 1;// rand() % 10;
 				canData.m_time = r + (unsigned int)cur + 10 * count;
@@ -1782,7 +1784,7 @@ TEST_CASE("TQUEUE_TEST")
 				{
 					count += 10*10;
 				}
-				//×Ô¶¨ÒåÊı¾İ±È½Ï·½·¨
+				//è‡ªå®šä¹‰æ•°æ®æ¯”è¾ƒæ–¹æ³•
 				struct compare<CanData> cmp(canData);
 				cmp.m_fn = [fn_time](const CanData &first, const CanData &second)->int {
 					if (first.m_time + 10 > second.m_time && first.m_time <= second.m_time) {
@@ -1818,7 +1820,7 @@ TEST_CASE("TQUEUE_TEST")
 					std::this_thread::sleep_for(std::chrono::seconds(5));
 					continue;
 				}
-				//²éÕÒ
+				//æŸ¥æ‰¾
 				int index = CanQueue->BinarySearch(cmp);
 				if (index != -1)
 				{
