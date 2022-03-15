@@ -1,4 +1,4 @@
-#include<iostream>
+#include <iostream>
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -8,8 +8,8 @@
 #include <functional>
 
 #include <stdio.h>
-#include<string.h>
-#include<stdlib.h>
+#include <string.h>
+#include <stdlib.h>
 #include <mutex>
 #include <queue>
 #include <vector>
@@ -27,7 +27,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "tools.h"
 #include "rsa.h"
@@ -40,11 +41,11 @@ extern "C" {
 #include "TBinarySerialize.h"
 using namespace Serialize_;
 using namespace std;
-#define FORBID_COPY(x)					\
-	x(const x&) = delete;				\
-	x& operator =(const x&) = delete;	\
-	x(x &&) = delete;					\
-	x& operator =(x&&) = delete;
+#define FORBID_COPY(x)                \
+	x(const x &) = delete;            \
+	x &operator=(const x &) = delete; \
+	x(x &&) = delete;                 \
+	x &operator=(x &&) = delete;
 
 class TaskQueue
 {
@@ -55,109 +56,122 @@ public:
 	std::list<Job> m_jobs;
 	std::unique_ptr<std::thread> m_thread;
 	bool m_running;
+
 public:
 	FORBID_COPY(TaskQueue)
-	void RunTask()	{
-		do 
+	void RunTask()
+	{
+		do
 		{
 			std::unique_lock<std::mutex> lock(m_mutex);
-			m_cond.wait(lock, [this]()->bool {
-				return !m_jobs.empty();
-			});
-			for (auto job :m_jobs)
+			m_cond.wait(lock, [this]() -> bool
+						{ return !m_jobs.empty(); });
+			for (auto job : m_jobs)
 			{
 				job();
 			}
 			m_jobs.clear();
 		} while (m_running);
 	}
-	TaskQueue() {
+	TaskQueue()
+	{
 		m_running = true;
-		m_thread = std::make_unique<std::thread>([this]() { RunTask(); });
+		m_thread = std::make_unique<std::thread>([this]()
+												 { RunTask(); });
 	}
-	~TaskQueue()	{
+	~TaskQueue()
+	{
 		m_running = false;
 		m_thread->join();
 	}
-	void enqueue(Job job){
+	void enqueue(Job job)
+	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_jobs.push_back(job);
 		m_cond.notify_one();
 	}
 };
 #if 1
-class Work :public enable_shared_from_this<Work>
+class Work : public enable_shared_from_this<Work>
 {
 public:
-	std::weak_ptr<Work> weak_self() {
+	std::weak_ptr<Work> weak_self()
+	{
 		return std::weak_ptr<Work>(shared_from_this());
 	}
-	//returns std::future<void>
-	auto asyncMethod() {
-		//Acquire shared_ptr to self from the weak_ptr
-		//Capture the shared_ptr.
-		return std::async(std::launch::async, [self = shared_from_this()]() {
+	// returns std::future<void>
+	auto asyncMethod()
+	{
+		// Acquire shared_ptr to self from the weak_ptr
+		// Capture the shared_ptr.
+		return std::async(std::launch::async, [self = shared_from_this()]()
+						  {
 			//Async task executing in a different thread
 			std::this_thread::sleep_for(std::chrono::seconds(2));
-			self->doSomething();
-		});
+			self->doSomething(); });
 	}
 
-	void doSomething() {
+	void doSomething()
+	{
 		printf("doSomething buf:%s\n", buf);
 	}
 
 public:
-	Work() {
+	Work()
+	{
 		buf = new char[10];
 		memset(buf, 0, 10);
 		memcpy(buf, "hello", strlen("hello"));
-		printf("Work() address:0x%0x\n",this);
+		printf("Work() address:0x%0x\n", this);
 	}
-	~Work() {
-		delete[]buf;
+	~Work()
+	{
+		delete[] buf;
 		printf("~Work() address:0x%0x\n", this);
 	}
 	FORBID_COPY(Work)
 public:
-	char* buf;
+	char *buf;
 };
 #else
 class Work
 {
 public:
-	//returns std::future<void>
-	auto asyncMethod() {
-		//Acquire shared_ptr to self from the weak_ptr
-		//Capture the shared_ptr.
-		return std::async(std::launch::async, [this]() {
+	// returns std::future<void>
+	auto asyncMethod()
+	{
+		// Acquire shared_ptr to self from the weak_ptr
+		// Capture the shared_ptr.
+		return std::async(std::launch::async, [this]()
+						  {
 			//Async task executing in a different thread
 			std::this_thread::sleep_for(std::chrono::seconds(2));
-			doSomething();
-		});
+			doSomething(); });
 	}
 
-	void doSomething() {
-		printf("buf:%s\n",buf);
+	void doSomething()
+	{
+		printf("buf:%s\n", buf);
 	}
 
 public:
-	Work() {
+	Work()
+	{
 		buf = new char[10];
 		memset(buf, 0, sizeof(10));
 		memcpy(buf, "hello", strlen("hello"));
 		printf("Work()\n");
 	}
-	~Work() {
-		delete[]buf;
+	~Work()
+	{
+		delete[] buf;
 		printf("~Work()\n");
 	}
 	FORBID_COPY(Work)
 public:
-	char* buf;
+	char *buf;
 };
 #endif
-
 
 TEST_CASE("enable_shared_from_this")
 {
@@ -168,7 +182,7 @@ TEST_CASE("enable_shared_from_this")
 		fut = pn->asyncMethod();
 	}
 	//The Work object lives until the async task is finished
-	fut.get(); //waits until the async work is done 
+	fut.get(); //waits until the async work is done
 #else
 	TaskQueue taskqueue;
 	{
@@ -177,10 +191,10 @@ TEST_CASE("enable_shared_from_this")
 		std::cout << "begin  use count:" << work.use_count() << endl;
 		for (auto count = 0; count < 10; count++)
 		{
-			taskqueue.enqueue([self = work->shared_from_this()](){
+			taskqueue.enqueue([self = work->shared_from_this()]()
+							  {
 				self->doSomething();
-				std::cout << "use count:" << self.use_count() <<endl;
-			});
+				std::cout << "use count:" << self.use_count() <<endl; });
 		}
 		std::cout << "end use count:" << work.use_count() << endl;
 	}
@@ -191,47 +205,49 @@ TEST_CASE("enable_shared_from_this")
 		std::cout << "begin  use count:" << work.use_count() << endl;
 		for (auto count = 0; count < 10; count++)
 		{
-			taskqueue.enqueue([self = work->weak_self()](){
+			taskqueue.enqueue([self = work->weak_self()]()
+							  {
 				std::cout << "use count:" << self.use_count() << endl;
 				if (auto instan = self.lock())
 				{
 					instan->doSomething();
 					std::cout << "get instan use count:" << self.use_count() << endl;
-				}
-			});
+				} });
 		}
 		std::cout << "end use count:" << work.use_count() << endl;
 	}
-	
+
 	std::cout << "over enable_shared_from_this" << endl;
 #endif
-	
 }
 
-
-
 template <typename FunctionT>
-struct Coentry{
-	static void coentry(void * arg)	{
+struct Coentry
+{
+	static void coentry(void *arg)
+	{
 		// Is this safe?
-		FunctionT * function = reinterpret_cast<FunctionT *>(arg);
+		FunctionT *function = reinterpret_cast<FunctionT *>(arg);
 		(*function)();
 	}
 
-	static void invoke(FunctionT function)	{
+	static void invoke(FunctionT function)
+	{
 		coentry(reinterpret_cast<void *>(&function));
 	}
 };
 
 template <typename FunctionT>
-void coentry(FunctionT function){
+void coentry(FunctionT function)
+{
 	Coentry<FunctionT>::invoke(function);
 }
 
 TEST_CASE("Lambda_convert_void")
 {
 	int value = 1;
-	auto f = [&] {
+	auto f = [&]
+	{
 		std::cerr << "Hello World! value:" << ++value << std::endl;
 	};
 
@@ -239,9 +255,7 @@ TEST_CASE("Lambda_convert_void")
 	printf("Lambda_convert_void value:%d\n", value);
 }
 
-
-
-void f(int n1, int n2, int n3, const int& n4, int n5)
+void f(int n1, int n2, int n3, const int &n4, int n5)
 {
 	std::cout << n1 << ' ' << n2 << ' ' << n3 << ' ' << n4 << ' ' << n5 << '\n';
 }
@@ -251,7 +265,8 @@ int g(int n1)
 	return n1;
 }
 
-struct Foo {
+struct Foo
+{
 	void print_sum(int n1, int n2)
 	{
 		std::cout << n1 + n2 << '\n';
@@ -261,7 +276,7 @@ struct Foo {
 
 TEST_CASE("bind")
 {
-	using namespace std::placeholders;  // for _1, _2, _3...
+	using namespace std::placeholders; // for _1, _2, _3...
 
 	std::cout << "demonstrates argument reordering and pass-by-reference:\n";
 	int n = 7;
@@ -273,7 +288,8 @@ TEST_CASE("bind")
 					// makes a call to f(2, 42, 1, n, 7)
 
 	std::cout << "achieving the same effect using a lambda:\n";
-	auto lambda = [ncref = std::cref(n), n = n](auto a, auto b, auto /*unused*/) {
+	auto lambda = [ncref = std::cref(n), n = n](auto a, auto b, auto /*unused*/)
+	{
 		f(b, 42, a, ncref, n);
 	};
 	lambda(1, 2, 1001); // same as a call to f1(1, 2, 1001)
@@ -301,16 +317,13 @@ TEST_CASE("bind")
 
 	std::cout << "use smart pointers to call members of the referenced objects:\n";
 	std::cout << f4(std::make_shared<Foo>(foo)) << ' '
-		<< f4(std::make_unique<Foo>(foo)) << '\n';
+			  << f4(std::make_unique<Foo>(foo)) << '\n';
 }
-
-
-
 
 #define SGMW_PUBKEY 1
 TEST_CASE("OPENSSL_RSA")
 {
-	RSA* rsa = RSA_new_method();
+	RSA *rsa = RSA_new_method();
 #if SGMW_PUBKEY
 	char n_data[] = "AB37CF906566CDE4688B422BF312F7B47734DD34E02A876D93A6126C9D45A34856CEF0CA9011C7DCE14E6742C36C0DFD5EC673C397D6B9B429386755747115A5B534D4F399BD156867E56DA5A00E538D148810FE0CA8EB4BB9DF93DB8ABD2EE4399F5AAA259664C5240B993D15232FBAB1959C733316A7D3808580C4A1327BD5";
 	char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
@@ -323,13 +336,14 @@ TEST_CASE("OPENSSL_RSA")
 	BN_hex2bn(&(rsa->e), e_data);
 	BN_hex2bn(&(rsa->n), n_data);
 	BN_hex2bn(&(rsa->d), d_data);
-	unsigned char* from = (unsigned char*)malloc(128);
+	unsigned char *from = (unsigned char *)malloc(128);
 	memset(from, 0, 128);
 #if 1
-	for (int i = 0; i < 128; i++){
+	for (int i = 0; i < 128; i++)
+	{
 		from[i] = 0;
 		if (i >= 112)
-			from[i] = i -112;
+			from[i] = i - 112;
 	}
 #else
 	for (int i = 0; i < 16; i++)
@@ -337,9 +351,9 @@ TEST_CASE("OPENSSL_RSA")
 		from[i] = i;
 	}
 #endif
-	unsigned char* cifher = (unsigned char*)malloc(128);
+	unsigned char *cifher = (unsigned char *)malloc(128);
 	memset(cifher, 0, 128);
-	unsigned char* to = (unsigned char*)malloc(128);
+	unsigned char *to = (unsigned char *)malloc(128);
 	memset(to, 0, 128);
 	rsa->meth->rsa_pub_enc(128, from, cifher, rsa, RSA_NO_PADDING);
 	rsa->meth->rsa_priv_dec(128, cifher, to, rsa, RSA_NO_PADDING);
@@ -413,18 +427,15 @@ TEST_CASE("OPENSSL_AES")
 }
 #endif
 
-
 TEST_CASE("RSA_1")
 {
 #ifndef RSA_1_
-	//1024bit
+	// 1024bit
 	unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
 	unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
 	unsigned char e_data[] = "10001";
 
-
 	int val = 0;
-
 
 	printf("\n*************************** Test RSA - Start ***************************\n");
 
@@ -435,7 +446,7 @@ TEST_CASE("RSA_1")
 	printf("The generated keys are...\n");
 	printf("n = ");
 	bignum_fromhexstring()
-	printbignum(n);
+		printbignum(n);
 	printf("e = ");
 	printbignum(e);
 	printf("d = ");
@@ -464,39 +475,37 @@ TEST_CASE("RSA_1")
 	printf("\n*************************** Test RSA - End ***************************\n");
 #elif defined RSA_2_
 
-	uint64_t input[18] = { 0 }, out[18] = { 0 }, encrypt[18] = { 0 }, n[18] = { 0 }, d[18] = { 0 }, e[18] = { 0 };
-	//1024bit
+	uint64_t input[18] = {0}, out[18] = {0}, encrypt[18] = {0}, n[18] = {0}, d[18] = {0}, e[18] = {0};
+	// 1024bit
 	unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
 	unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
 
 	e[0] = 0x10001;
 
-
 	int val = 0;
-	int len = strlen((char*)n_data) / 2;
-	char *buf = (char*)malloc(len);
+	int len = strlen((char *)n_data) / 2;
+	char *buf = (char *)malloc(len);
 	memset(buf, 0, 128);
 	for (int i = 0; i < len; i++)
 	{
-		if (sscanf((char*)(n_data + 2 * (len - 1 - i)), "%02x", &val) != 1)
+		if (sscanf((char *)(n_data + 2 * (len - 1 - i)), "%02x", &val) != 1)
 		{
 			return;
 		}
 		buf[i] = val;
 	}
-	memcpy((char*)&n, buf, 128);
+	memcpy((char *)&n, buf, 128);
 
 	memset(buf, 0, 128);
 	for (int i = 0; i < len; i++)
 	{
-		if (sscanf((char*)(d_data + 2 * (len - 1 - i)), "%02x", &val) != 1)
+		if (sscanf((char *)(d_data + 2 * (len - 1 - i)), "%02x", &val) != 1)
 		{
 			return;
 		}
 		buf[i] = val;
 	}
-	memcpy((char*)d, buf, 128);
-
+	memcpy((char *)d, buf, 128);
 
 	clock_t start_enc, stop_enc, start_dec, stop_dec;
 	unsigned long us_enc = 0, us_dec = 0;
@@ -507,44 +516,42 @@ TEST_CASE("RSA_1")
 		p[i] = i;
 	}
 #endif
-	strcpy((char*)input, "hello, this is first rsa encode.");
-
+	strcpy((char *)input, "hello, this is first rsa encode.");
 
 	start_enc = clock();
 
 	rsa1024(encrypt, input, e, n);
 
-	_utility::ToHex(string{ (char*)encrypt, 128 });
+	_utility::ToHex(string{(char *)encrypt, 128});
 	rsa1024(out, encrypt, d, n);
 	memset(buf, 0, 128);
-	memcpy((char*)buf, (char*)out, 128);
+	memcpy((char *)buf, (char *)out, 128);
 #else
-	//1024bit
-	//unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
-	//unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
+	// 1024bit
+	// unsigned char n_data[] = "d5a6d0c5f97a4f5ba303319b990ace065bad0a7b3d4a4fafc84d4642d8a983510ed6c815dbb1bead336d0ff561a160c75a5c2fae65c7908d76466b498f537f6c8279f5769cf6bab9ee9064df56cc6457902ab57f40bb5a45bc4bd389064657754cb3871c6920bfeaf4803a485cde63d131b0f24a836c4ef98c1c9aa4e0ecc261";
+	// unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
 
 	unsigned char n_data[] = "AB37CF906566CDE4688B422BF312F7B47734DD34E02A876D93A6126C9D45A34856CEF0CA9011C7DCE14E6742C36C0DFD5EC673C397D6B9B429386755747115A5B534D4F399BD156867E56DA5A00E538D148810FE0CA8EB4BB9DF93DB8ABD2EE4399F5AAA259664C5240B993D15232FBAB1959C733316A7D3808580C4A1327BD5";
 	unsigned char d_data[] = "a8475adb0413dd1b9d3aafc1117adc294fddec8a830cdbd4e55c5001e8ab235e1de4f7f59773d96e8c39d3beff25df974549a4d8a51bd974427b5697bac7166dcdb1b474670071482096588c09a6a3e4d109f14be78b0453c77cbe86f72657019f3ba473017289fa9f932043cca6b26e78b051cf833a0b802a9a5c4bed727041";
 
-
 	bignum *n = bignum_init(), *e = bignum_init(), *d = bignum_init();
 
-	bignum_fromhexstring(n, (char*)n_data, strlen((char*)n_data));
-	bignum_fromhexstring(d, (char*)d_data, strlen((char*)d_data));
-	int iE = 0x10001;//65537
+	bignum_fromhexstring(n, (char *)n_data, strlen((char *)n_data));
+	bignum_fromhexstring(d, (char *)d_data, strlen((char *)d_data));
+	int iE = 0x10001; // 65537
 	bignum_fromint(e, iE);
 
 	printf("crypt_test...\n");
 	int bytes;
-	char* encoded;
+	char *encoded;
 	int encode_len = 0;
-	char* decoded;
+	char *decoded;
 	int decode_len = 0;
-	bignum* pub_exp;
-	bignum* pub_mod;
-	bignum* priv_exp;
-	bignum* priv_mod;
-	char* hello = (char*)malloc(128);
+	bignum *pub_exp;
+	bignum *pub_mod;
+	bignum *priv_exp;
+	bignum *priv_mod;
+	char *hello = (char *)malloc(128);
 #if 1
 	for (int i = 0; i < 16; i++)
 	{
@@ -571,10 +578,8 @@ TEST_CASE("RSA_1")
 	bignum_print(n);
 	printf("pub d:\n");
 	bignum_print(d);
-	encodeString(hello,32, &encoded, &encode_len, e, n);
+	encodeString(hello, 32, &encoded, &encode_len, e, n);
 	decodeString(encoded, encode_len, &decoded, &decode_len, d, n);
-	
-
 
 	printf("Decoded result:\n");
 	printf("%s\n", decoded);
@@ -582,16 +587,16 @@ TEST_CASE("RSA_1")
 	free(hello);
 
 #endif
-
 }
 
-
-TEST_CASE("BindArchive") {
+TEST_CASE("BindArchive")
+{
 	bindArchive();
 }
 
 #ifdef WIN32
-TEST_CASE("test_sqlite") {
+TEST_CASE("test_sqlite")
+{
 	test_sqlite();
 }
 #endif
@@ -603,9 +608,11 @@ int cargo = 0;
 // 消费者线程.
 void consume(int n)
 {
-	for (int i = 0; i < n; ++i) {
-		std::unique_lock <std::mutex> lck(mtx);
-		cv.wait(lck, [] { return cargo != 0; });
+	for (int i = 0; i < n; ++i)
+	{
+		std::unique_lock<std::mutex> lck(mtx);
+		cv.wait(lck, []
+				{ return cargo != 0; });
 		printf("consume:%d, cargo:%d\n", i, cargo);
 		cargo = 0;
 		printf("after consume:%d, cargo:%d\n", i, cargo);
@@ -616,32 +623,35 @@ TEST_CASE("test_condition")
 {
 	std::thread consumer_thread(consume, 10); // 消费者线程.
 											  // 主线程为生产者线程, 生产 10 个物品.
-	for (int i = 0; i < 10; ++i) {
-		while ([]{ return cargo != 0; }())
+	for (int i = 0; i < 10; ++i)
+	{
+		while ([]
+			   { return cargo != 0; }())
 			std::this_thread::yield();
-		std::unique_lock <std::mutex> lck(mtx);
+		std::unique_lock<std::mutex> lck(mtx);
 		cargo = i + 1;
 
-		printf("main cargo:%d\n",cargo);
+		printf("main cargo:%d\n", cargo);
 		cv.notify_one();
 	}
 	consumer_thread.join();
 }
 
-
 TEST_CASE("test localtime_r")
 {
 	{
 		std::tm cur = {};
-		//std::istringstream ss("2011-02-18 23:12:34");
-		//ss >> std::get_time(&t, "%Y-%m-%d %H:%M:%S");
+		// std::istringstream ss("2011-02-18 23:12:34");
+		// ss >> std::get_time(&t, "%Y-%m-%d %H:%M:%S");
 		std::chrono::time_point<std::chrono::system_clock> t1;
 		std::istringstream ss("2011-02-18");
 		ss >> std::get_time(&cur, "%Y-%m-%d");
-		if (ss.fail()) {
+		if (ss.fail())
+		{
 			std::cout << "Parse failed\n";
 		}
-		else {
+		else
+		{
 
 			time_t c_time_t = std::mktime(&cur);
 			std::cout << std::put_time(&cur, "%Y-%m-%d %H:%M:%S") << " time:" << c_time_t << '\n';
@@ -677,32 +687,32 @@ TEST_CASE("test localtime_r")
 		auto time_point2 = std::chrono::system_clock::to_time_t(timer.from_string(result2, "%Y-%m-%d"));
 		printf("time %s,%lld \n", result2.c_str(), time_point2);
 
-
 		printf("111 time %lld,%lld \n", time_point, time_point1 + time_point2);
 		CHECK_EQ(time_point, time_point1 + time_point2);
 		printf("222 time %lld,%lld \n", t, timer.to_time());
 		CHECK_EQ(t, timer.to_time());
 	}
 	//测试localtime多线程date race导致数据不安全
-#ifndef _WIN32
+#if 0
 	test_localtime_r();
 #endif
 }
-
 
 #include <atomic>
 #include <chrono>
 #include <stdio.h>
 #define NUM 500000
-unsigned  long long gCritical = 0;
+unsigned long long gCritical = 0;
 
-class _mutex {
-	std::atomic<bool> flag{ false };
+class _mutex
+{
+	std::atomic<bool> flag{false};
 
 public:
 	void lock()
 	{
-		while (flag.exchange(true, std::memory_order_relaxed));
+		while (flag.exchange(true, std::memory_order_relaxed))
+			;
 		std::atomic_thread_fence(std::memory_order_acquire);
 	}
 
@@ -720,25 +730,25 @@ void test_atomic_bool_lock(int i)
 	{
 		g_atomic_bool.lock();
 		gCritical++;
-		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		// printf("thread:%d,gCount:%lld\n", i, gCritical);
 		g_atomic_bool.unlock();
 	}
 }
 
-std::atomic<bool> g_flag{ false };
+std::atomic<bool> g_flag{false};
 void test_atomic_bool_lock_(int i)
 {
 	while (gCritical < NUM)
 	{
-		while (g_flag.exchange(true, std::memory_order_relaxed));
+		while (g_flag.exchange(true, std::memory_order_relaxed))
+			;
 		std::atomic_thread_fence(std::memory_order_acquire);
 		gCritical++;
-		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		// printf("thread:%d,gCount:%lld\n", i, gCritical);
 		std::atomic_thread_fence(std::memory_order_release);
 		g_flag.store(false, std::memory_order_relaxed);
 	}
 }
-
 
 std::atomic_flag g_lock = ATOMIC_FLAG_INIT;
 std::mutex g_mutex;
@@ -752,7 +762,7 @@ void test_atomic_flag_lock(int i)
 			this_thread::yield();
 		}
 		gCritical++;
-		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		// printf("thread:%d,gCount:%lld\n", i, gCritical);
 		g_lock.clear(std::memory_order_release);
 	}
 }
@@ -763,13 +773,9 @@ void test_mutex(int i)
 	{
 		std::unique_lock<std::mutex> lock(g_mutex);
 		gCritical++;
-		//printf("thread:%d,gCount:%lld\n", i, gCritical);
+		// printf("thread:%d,gCount:%lld\n", i, gCritical);
 	}
 }
-
-
-
-
 
 TEST_CASE("atomic_and_mutex")
 {
@@ -781,7 +787,7 @@ TEST_CASE("atomic_and_mutex")
 		std::vector<std::thread> m_thread;
 		for (int i = 0; i < 10; i++)
 		{
-			m_thread.push_back(std::thread(test_mutex, i));//5012ms
+			m_thread.push_back(std::thread(test_mutex, i)); // 5012ms
 		}
 		for (auto &th : m_thread)
 		{
@@ -789,7 +795,7 @@ TEST_CASE("atomic_and_mutex")
 		}
 		auto end = std::chrono::high_resolution_clock::now();
 		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-		printf("mutex cost time:%lld, %lld\n", interval.count(),timer.elapsed<std::chrono::milliseconds>());
+		printf("mutex cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
 	}
 
 	{
@@ -799,7 +805,7 @@ TEST_CASE("atomic_and_mutex")
 		std::vector<std::thread> m_thread;
 		for (int i = 0; i < 10; i++)
 		{
-			m_thread.push_back(std::thread(test_atomic_flag_lock, i));//4537ms
+			m_thread.push_back(std::thread(test_atomic_flag_lock, i)); // 4537ms
 		}
 		for (auto &th : m_thread)
 		{
@@ -817,7 +823,7 @@ TEST_CASE("atomic_and_mutex")
 		std::vector<std::thread> m_thread;
 		for (int i = 0; i < 10; i++)
 		{
-			m_thread.push_back(std::thread(test_atomic_bool_lock, i));//4537ms
+			m_thread.push_back(std::thread(test_atomic_bool_lock, i)); // 4537ms
 		}
 		for (auto &th : m_thread)
 		{
@@ -828,8 +834,6 @@ TEST_CASE("atomic_and_mutex")
 		printf("atomic_bool 1 cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
 	}
 
-
-
 	{
 		gCritical = 0;
 		CDataTime timer;
@@ -837,7 +841,7 @@ TEST_CASE("atomic_and_mutex")
 		std::vector<std::thread> m_thread;
 		for (int i = 0; i < 10; i++)
 		{
-			m_thread.push_back(std::thread(test_atomic_bool_lock_, i));//4537ms
+			m_thread.push_back(std::thread(test_atomic_bool_lock_, i)); // 4537ms
 		}
 		for (auto &th : m_thread)
 		{
@@ -847,15 +851,13 @@ TEST_CASE("atomic_and_mutex")
 		auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 		printf("atomic_bool 2 cost time:%lld, %lld\n", interval.count(), timer.elapsed<std::chrono::milliseconds>());
 	}
-
 }
-
 
 class testA
 {
 public:
-	testA(){}
-	~testA(){}
+	testA() {}
+	~testA() {}
 };
 
 class testB
@@ -863,8 +865,8 @@ class testB
 public:
 	testB() {}
 	~testB() {}
-	template<class Archive>
-	void serialize(Archive ar) {};
+	template <class Archive>
+	void serialize(Archive ar){};
 };
 
 TEST_CASE("register_relationship")
@@ -876,13 +878,12 @@ TEST_CASE("register_relationship")
 	CHECK_EQ(std::is_pod<base>::value, false);
 	CHECK_EQ(std::is_class<base>::value, true);
 	CHECK_EQ(traits::has_member_serialize<base, TBinaryArchive>::value, false);
-	CHECK_EQ(traits::has_member_serialize<Hello, TBinaryArchive>::value,true);
-	//r1 = std::is_base_of<BinaryData<char>, <BinaryData<char> >>::value;
+	CHECK_EQ(traits::has_member_serialize<Hello, TBinaryArchive>::value, true);
+	// r1 = std::is_base_of<BinaryData<char>, <BinaryData<char> >>::value;
 	//测试BinaryData<char>是否为BinaryData 偏特化类型
-	CHECK_EQ(is_specialization<BinaryData<char>, BinaryData>::value,true);
+	CHECK_EQ(is_specialization<BinaryData<char>, BinaryData>::value, true);
 
-
-	auto & RelationMap = TSingleton<PolymorphicCasters>::GetInstance().map;
+	auto &RelationMap = TSingleton<PolymorphicCasters>::GetInstance().map;
 	Hello *phello = new Hello;
 	phello->a = 0x12;
 	phello->b = 0x1234;
@@ -893,12 +894,10 @@ TEST_CASE("register_relationship")
 	base *pReissuebase = pReissue;
 	base &pReissuebase1 = *pReissue;
 
-
 	auto ret = std::is_polymorphic<std::remove_reference<decltype(*phello)>::type>::value;
 	auto ret2 = std::is_polymorphic<std::remove_reference<decltype(phello)>::type>::value;
-	printf("name:%s\n",  type_index(typeid(decltype(phello))).name());
+	printf("name:%s\n", type_index(typeid(decltype(phello))).name());
 	auto ret3 = std::is_polymorphic<std::remove_reference<decltype(pReissuebase1)>::type>::value;
-
 
 	const auto derivedKey = std::type_index(typeid(decltype(*phello)));
 	const auto baseKey = std::type_index(typeid(decltype(*pbaseHello)));
@@ -906,15 +905,14 @@ TEST_CASE("register_relationship")
 	{
 		printf("type index 11111\n");
 	}
-	
 
 	const auto base13 = std::type_index(typeid(pReissuebase1));
-	std::type_info const & ptrinfo = typeid(pReissuebase);
-	std::type_info const & ptrinfo1 = typeid(*pReissuebase);
+	std::type_info const &ptrinfo = typeid(pReissuebase);
+	std::type_info const &ptrinfo1 = typeid(*pReissuebase);
 	const auto baseKey12 = std::type_index(ptrinfo);
 	const auto baseKey112 = std::type_index(ptrinfo1);
 	const auto derivedKey11 = std::type_index(typeid(decltype(*pReissue)));
-	const auto baseKey11 = std::type_index(typeid(decltype(*pReissuebase)));//基类错误的转换，没有考虑rtti，最终类型是基类不是子类
+	const auto baseKey11 = std::type_index(typeid(decltype(*pReissuebase))); //基类错误的转换，没有考虑rtti，最终类型是基类不是子类
 	if (derivedKey11 == baseKey11)
 	{
 		printf("type index 22222\n");
@@ -925,7 +923,7 @@ TEST_CASE("register_relationship")
 	{
 		printf("find %s\n", baseKey11.name());
 
-		auto const & derivedMap = baseIter->second;
+		auto const &derivedMap = baseIter->second;
 		auto derivedIter = derivedMap.find(base13);
 		if (derivedIter != derivedMap.end())
 		{
@@ -943,11 +941,10 @@ TEST_CASE("register_relationship")
 			WArchive(&b);
 #endif
 
-			auto ret1 =  std::is_class<base>::value;
+			auto ret1 = std::is_class<base>::value;
 			auto ret2 = traits::has_serialize<base, TBinaryArchive>::value;
 			WArchive(*pbaseHello);
 			WArchive(pbaseHello, pbaseHello);
-
 
 			Hello *phello_1 = new Hello;
 			Hello *phello_2 = new Hello;
@@ -957,20 +954,18 @@ TEST_CASE("register_relationship")
 			RArchive1(*phello_1, phello_2, phello_3);
 			CHECK_EQ(phello->d, phello_1->d);
 			CHECK_EQ(phello->b, phello_2->b);
-			CHECK_EQ(phello->d, dynamic_cast<Hello*>(phello_3)->d);
-			//auto derived = PolymorphicCasters::upcast(pReissuebase1, baseInfo);
+			CHECK_EQ(phello->d, dynamic_cast<Hello *>(phello_3)->d);
+			// auto derived = PolymorphicCasters::upcast(pReissuebase1, baseInfo);
 		}
 	}
 	if (derivedKey11 == baseKey12)
 	{
-
 	}
 }
 
-
 TEST_CASE("test_stringstream")
 {
-	char temp[] = {'1','2','\0','3'};
+	char temp[] = {'1', '2', '\0', '3'};
 	std::stringstream stream;
 	stream << temp;
 	printf("test_stringstream  str:%s,%ld\n", stream.str().c_str(), stream.str().length());
@@ -986,11 +981,10 @@ TEST_CASE("test_stringstream")
 //测试条件变量虚假唤醒和唤醒丢失
 TEST_CASE("Condition_var_test")
 {
-	//condtion_var_test();
+	// condtion_var_test();
 }
 
-
-static string ToHex1(const string& s, bool upper_case = true)
+static string ToHex1(const string &s, bool upper_case = true)
 {
 	ostringstream ret;
 	ret << std::hex << std::setfill('0');
@@ -1001,12 +995,8 @@ static string ToHex1(const string& s, bool upper_case = true)
 	return ret.str();
 }
 
-
-
-
-
 // template<class T>
-// inline typename enable_if_t<std::is_array<T>::value> 
+// inline typename enable_if_t<std::is_array<T>::value>
 // CheckVariable1(T &t)
 // {
 // 	using TT = typename std::remove_pointer<T>::type;
@@ -1016,18 +1006,18 @@ static string ToHex1(const string& s, bool upper_case = true)
 // 	printf("array CheckVariable %d,%d,%d,%d\n",sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3));
 // }
 
-template<class T>
+template <class T>
 void CheckVariable1(T &t)
 {
 	using TT = typename std::remove_pointer<T>::type;
 	using TT1 = typename std::remove_pointer<typename std::remove_reference<T>::type>::type;
 	using TT2 = typename std::remove_all_extents<typename std::remove_reference<T>::type>::type;
 	using TT3 = typename std::remove_pointer<typename std::remove_reference<typename std::remove_all_extents<T>::type>::type>::type;
-	//using TT4 = decltype(T);
+	// using TT4 = decltype(T);
 	printf("CheckVariable %ld,%ld,%ld,%ld\n", sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3));
 }
 
-template<class T>
+template <class T>
 void CheckVariable1(BinaryData<T> &t)
 {
 	using TT = typename std::remove_pointer<T>::type;
@@ -1035,16 +1025,16 @@ void CheckVariable1(BinaryData<T> &t)
 	using TT2 = typename std::remove_all_extents<typename std::remove_reference<T>::type>::type;
 	//先去引用，然后去掉数组，最后去掉指针
 	using TT3 = typename std::remove_pointer<typename std::remove_all_extents<typename std::remove_reference<T>::type>::type>::type;
-	if (std::is_same<typename std::decay<T>::type, int*>::value)
+	if (std::is_same<typename std::decay<T>::type, int *>::value)
 	{
 		printf("T is int*\n");
 	}
-	if (std::is_same<typename std::decay<T>::type, char*>::value)
+	if (std::is_same<typename std::decay<T>::type, char *>::value)
 	{
 		printf("T is char*\n");
 	}
 	using TT4 = typename std::remove_pointer<typename std::decay<T>::type>::type;
-	if (std::is_same<TT4,int>::value)
+	if (std::is_same<TT4, int>::value)
 	{
 		printf("T is int\n");
 	}
@@ -1055,7 +1045,7 @@ void CheckVariable1(BinaryData<T> &t)
 	printf("BinaryData CheckVariable %ld,%ld,%ld,%ld,%ld\n", sizeof(TT), sizeof(TT1), sizeof(TT2), sizeof(TT3), sizeof(TT4));
 }
 
-template<class T>
+template <class T>
 void CheckVariable(T &&t)
 {
 	CheckVariable1(t);
@@ -1063,8 +1053,8 @@ void CheckVariable(T &&t)
 
 TEST_CASE("TYPE_CHECK")
 {
-	int arr[10] = { 1,2,3,4,5,6,7,8,9,10 };
-	int arr_[2][2] = { {1,2},{3,4}};
+	int arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	int arr_[2][2] = {{1, 2}, {3, 4}};
 	CheckVariable(arr);
 	char *buf = new char[20];
 	CheckVariable(buf);
@@ -1082,59 +1072,57 @@ using no1 = std::false_type;
 
 struct test0
 {
-	void hello() {};
+	void hello(){};
 };
 struct test1
 {
 };
 template <class T>
-struct has_non_serialize_imp{
-	template<class TT>
-	/*!It's an comma-separated list of expressions, the type is identical to the type of 
+struct has_non_serialize_imp
+{
+	template <class TT>
+	/*!It's an comma-separated list of expressions, the type is identical to the type of
 	the last expression in the list. It's usually used to verify that the first expression
 	is valid (compilable, think SFINAE), the second is used to specify that decltype should
 	return in case the first expression is valid*/
-	static auto fun(int)->decltype(declval<TT&>().hello(), std::true_type()) {};
-	template<class TT>
-	static std::false_type fun(...) {};
+	static auto fun(int) -> decltype(declval<TT &>().hello(), std::true_type()){};
+	template <class TT>
+	static std::false_type fun(...){};
 	static const bool value = std::is_same<decltype(fun<T>(0)), std::true_type>::value;
 };
 
 template <class T>
-struct Check : std::integral_constant<bool, has_non_serialize_imp<T>::value>{};
+struct Check : std::integral_constant<bool, has_non_serialize_imp<T>::value>
+{
+};
 
-
-
-
-template<class T,class A>
+template <class T, class A>
 struct has_non_save_imp
 {
-	template<class TT,class AA>
-	static auto test(int)->decltype(save(declval<AA&>(), declval<TT const&>()), yes1());
-	template<class TT,class AA>
+	template <class TT, class AA>
+	static auto test(int) -> decltype(save(declval<AA &>(), declval<TT const &>()), yes1());
+	template <class TT, class AA>
 	static no1 test(...);
 	static const bool value = std::is_same<decltype(test<T, A>(0)), yes1>::value;
 
-	template<class TT, class AA>
-	static auto test2(int)->decltype(save(declval<AA&>(), declval<typename std::remove_const<TT>::type&>()), yes1());
-	template<class TT, class AA>
+	template <class TT, class AA>
+	static auto test2(int) -> decltype(save(declval<AA &>(), declval<typename std::remove_const<TT>::type &>()), yes1());
+	template <class TT, class AA>
 	static no1 test2(...);
 	static const bool not_const_type = std::is_same<decltype(test2<T, A>(0)), yes1>::value;
 };
 
-template <class T, class ArchiveType, std::enable_if_t<std::is_integral<T>::value>* = nullptr> inline
-void ProcessImp(T const &t, ArchiveType &a)
+template <class T, class ArchiveType, std::enable_if_t<std::is_integral<T>::value> * = nullptr>
+inline void ProcessImp(T const &t, ArchiveType &a)
 {
 	printf("111111\n");
 }
 
-template <class T, class ArchiveType, std::enable_if_t<std::is_array<T>::value>* = nullptr> inline
-void ProcessImp(T &t, ArchiveType &a)
+template <class T, class ArchiveType, std::enable_if_t<std::is_array<T>::value> * = nullptr>
+inline void ProcessImp(T &t, ArchiveType &a)
 {
 	printf("22222\n");
 }
-
-
 
 typedef struct tagStrucTest
 {
@@ -1145,14 +1133,15 @@ typedef struct tagStrucTest
 		a = 0x1234;
 		b = 0x5678;
 	}
+
 private:
 	friend class traits::access;
-	template<class ArchiveType>
+	template <class ArchiveType>
 	void serialize(ArchiveType &ar)
 	{
 		ar(a, b);
 	}
-}StrucTest;
+} StrucTest;
 
 typedef struct tagStrucTest1
 {
@@ -1163,27 +1152,29 @@ typedef struct tagStrucTest1
 		a = 0x1234;
 		b = 0x5678;
 	}
-	template<class ArchiveType>
+	template <class ArchiveType>
 	void serialize(ArchiveType &ar)
 	{
 		ar(a, b);
 	}
-}StrucTest1;
+} StrucTest1;
 
-template<typename, typename T>
-struct has_serialize1 {
+template <typename, typename T>
+struct has_serialize1
+{
 	static_assert(
 		std::integral_constant<T, false>::value,
 		"Second template parameter needs to be of function type.");
 };
 
-template<typename C, typename Ret, typename... Args>
-struct has_serialize1<C, Ret(Args...)> {
+template <typename C, typename Ret, typename... Args>
+struct has_serialize1<C, Ret(Args...)>
+{
 private:
-	template<typename T>
-	static constexpr auto check(T*)-> typename	std::is_same<decltype(std::declval<T>().serialize(std::declval<Args>()...)),Ret>::type;  // attempt to call it and see if the return type is correct
+	template <typename T>
+	static constexpr auto check(T *) -> typename std::is_same<decltype(std::declval<T>().serialize(std::declval<Args>()...)), Ret>::type; // attempt to call it and see if the return type is correct
 
-	template<typename>
+	template <typename>
 	static constexpr std::false_type check(...);
 
 	typedef decltype(check<C>(0)) type;
@@ -1196,7 +1187,7 @@ TEST_CASE("TRAITS")
 {
 	uint8_t a = 1;
 	using T = decltype(a);
-	printf("Check test0:%d\n",Check<test0>::value);
+	printf("Check test0:%d\n", Check<test0>::value);
 	printf("Check test1:%d\n", Check<test1>::value);
 
 	std::stringstream stream;
@@ -1207,7 +1198,7 @@ TEST_CASE("TRAITS")
 	bool ret2 = traits::has_serialize_array<T, TBinaryArchive>::value;
 	//类型过滤
 	ProcessImp(a, wArchive);
-	int arr[2] = { 1,2 };
+	int arr[2] = {1, 2};
 	ProcessImp(arr, wArchive);
 	using T1 = decltype(arr);
 	bool ret9 = is_array<T1>::value;
@@ -1230,9 +1221,8 @@ TEST_CASE("TRAITS")
 	//检测是否有成员函数
 	auto ret12 = has_serialize1<StrucTest, void(TBinaryArchive)>::value;
 	auto ret13 = has_serialize1<StrucTest1, void(TBinaryArchive)>::value;
-	//static_assert(std::is_same<decltype(test<test0>::fun(), 3.1), double>::value, "Will not fire");
+	// static_assert(std::is_same<decltype(test<test0>::fun(), 3.1), double>::value, "Will not fire");
 	printf("1111111\n");
-
 }
 
 #if 0
@@ -1248,46 +1238,59 @@ int GetLength(T&& head, Other &&... tail)
 	return GetLength(head) + GetLength(tail...);
 }
 #else
-template<class T>
-uint64_t GetLength(T &&t) {
+template <class T>
+uint64_t GetLength(T &&t)
+{
 	using TT = typename std::remove_pointer<typename std::remove_all_extents<typename std::remove_reference<T>::type>::type>::type;
 	static_assert(!std::is_floating_point<TT>::value ||
-		(std::is_floating_point<TT>::value && std::numeric_limits<TT>::is_iec559),
-		"could not calculate the size of T");
+					  (std::is_floating_point<TT>::value && std::numeric_limits<TT>::is_iec559),
+				  "could not calculate the size of T");
 	printf("element size:%ld,total size:%ld\n", sizeof(TT), sizeof(t));
 	return sizeof(t);
 }
-template<class T>
-uint64_t GetLength(BinaryData<T> &bd) {
+template <class T>
+uint64_t GetLength(BinaryData<T> &bd)
+{
 	return bd.m_size;
 }
-template<class T, class ...Args>
-uint64_t GetLength(T &&head, Args &&... tail) {
+template <class T, class... Args>
+uint64_t GetLength(T &&head, Args &&...tail)
+{
 	return GetLength(std::forward<T>(head)) + GetLength(std::forward<Args>(tail)...);
 }
 
 #endif
 
-template<class T>
-void add(T &t){
+template <class T>
+void add(T &t)
+{
 	t = 15;
 }
-template<class T>
-void copy(T &&t){
-	add(std::forward<T&>(t));
+template <class T>
+void copy(T &&t)
+{
+	add(std::forward<T &>(t));
 }
 
 class A
 {
 public:
-	A() { val = 0; cout << "A construct called!\n" << endl; }
-	~A() { cout << "A destruct called!\n" << endl; }
-	void operator =(int a)	{ val = a;}
+	A()
+	{
+		val = 0;
+		cout << "A construct called!\n"
+			 << endl;
+	}
+	~A() { cout << "A destruct called!\n"
+				<< endl; }
+	void operator=(int a) { val = a; }
+
 private:
 	int val;
 };
 
-void assignment(uint8_t & t){
+void assignment(uint8_t &t)
+{
 	t += 10;
 }
 
@@ -1297,19 +1300,19 @@ TEST_CASE("Serialize")
 	uint8_t len_2 = 0xff;
 	A objectA;
 	copy((uint8_t)len_1);
-	copy(*(uint8_t*)&len_1);
+	copy(*(uint8_t *)&len_1);
 	copy(len_2);
 	copy(objectA);
-	assignment(*(uint8_t*)&len_1);
+	assignment(*(uint8_t *)&len_1);
 	assignment(len_2);
 	char a = 0x12;
 	short b = 0x1234;
 	int c = 0x12344321;
 	long long d = 0x1234567812345678;
-	int arr[10] = { 1,2,3,4,5,6,7,8,9,10 };
-	int arr1[2][2] = { {5,6},{8,9} };
+	int arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	int arr1[2][2] = {{5, 6}, {8, 9}};
 	std::stringstream stream;
-	TBinaryArchive wArchive(eSerializeWrite, stream,Serialize_::TBinaryArchive::Options::LittleEndian());
+	TBinaryArchive wArchive(eSerializeWrite, stream, Serialize_::TBinaryArchive::Options::LittleEndian());
 
 	std::stringstream stream1;
 	TBinaryArchive wArchive1(eSerializeWrite, stream1, false);
@@ -1321,15 +1324,15 @@ TEST_CASE("Serialize")
 	hello.d = d;
 	wArchive1(hello);
 #else
-	base *pBase = new Hello;//
-	((Hello*)pBase)->a = a;
-	((Hello*)pBase)->b = b;
-	((Hello*)pBase)->c = c;
-	((Hello*)pBase)->d = d;
+	base *pBase = new Hello; //
+	((Hello *)pBase)->a = a;
+	((Hello *)pBase)->b = b;
+	((Hello *)pBase)->c = c;
+	((Hello *)pBase)->d = d;
 	wArchive1(*pBase);
 #endif
 
-	wArchive(arr1, a, b, c, d,arr );
+	wArchive(arr1, a, b, c, d, arr);
 
 	StrucTest struTest;
 	struTest.a = 0x123456;
@@ -1338,13 +1341,13 @@ TEST_CASE("Serialize")
 
 	int len = 20;
 	char *pBuf = new char[len];
-	for (int i = 0 ;i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		pBuf[i] = i;
 	}
-	//auto BData1 = BinaryData<char*>(std::forward<char*>(pBuf), len);
-	auto BData = Binary_data(pBuf, len); //if T is lvalue that will be deduced to T&
-	//auto BData = Binary_data_(pBuf, len);
+	// auto BData1 = BinaryData<char*>(std::forward<char*>(pBuf), len);
+	auto BData = Binary_data(pBuf, len); // if T is lvalue that will be deduced to T&
+	// auto BData = Binary_data_(pBuf, len);
 	wArchive(BData);
 	printf("stream  len:%ld,str:%s\n", stream.str().length(), ToHex1(stream.str()).c_str());
 	printf("stream1 len:%ld,str:%s\n", stream1.str().length(), ToHex1(stream1.str()).c_str());
@@ -1358,7 +1361,7 @@ TEST_CASE("Serialize")
 	short bb = 0;
 	int cc = 0;
 	long long dd = 0;
-	int arr_[10] = { 0 };
+	int arr_[10] = {0};
 	int arr1_[2][2] = {0};
 	rArchive(arr1_, aa, bb, cc, dd, arr_);
 
@@ -1372,9 +1375,9 @@ TEST_CASE("Serialize")
 	{
 		pBuf_[i] = 0;
 	}
-	//auto _BData = BinaryData<char*>(std::move(_pBuf), len);
-	//auto _BData = BinaryData<char*>(std::forward<char*>(_pBuf), len);
-	//auto BData_ = Binary_data(pBuf_, len);
+	// auto _BData = BinaryData<char*>(std::move(_pBuf), len);
+	// auto _BData = BinaryData<char*>(std::forward<char*>(_pBuf), len);
+	// auto BData_ = Binary_data(pBuf_, len);
 	rArchive(Binary_data(pBuf_, len));
 	auto length = GetLength(aa, bb, cc, dd, arr, arr1_);
 	auto length_1 = GetLength(aa, bb, cc, dd, arr, arr1_, BData, struTest_);
@@ -1382,10 +1385,10 @@ TEST_CASE("Serialize")
 	CHECK_EQ(b, bb);
 	CHECK_EQ(c, cc);
 	CHECK_EQ(d, dd);
-	//CHECK_EQ(arr, arr_);
-	//CHECK_EQ(arr1, arr1_);
-	//CHECK_EQ(hello, hello1);
-	//CHECK_EQ(pBuf, pBuf_);
+	// CHECK_EQ(arr, arr_);
+	// CHECK_EQ(arr1, arr1_);
+	// CHECK_EQ(hello, hello1);
+	// CHECK_EQ(pBuf, pBuf_);
 	printf("Serialize OK\n");
 }
 
@@ -1395,8 +1398,8 @@ TEST_CASE("Serialize1")
 	short b = 0x1234;
 	int c = 0x12344321;
 	long long d = 0x1234567812345678;
-	int arr[10] = { 1,2,3,4,5,6,7,8,9,10 };
-	int arr1[2][2] = { { 5,6 },{ 8,9 } };
+	int arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	int arr1[2][2] = {{5, 6}, {8, 9}};
 
 	std::stringstream stream1;
 	TBinaryArchive wArchive1(eSerializeWrite, stream1, false);
@@ -1412,7 +1415,7 @@ TEST_CASE("Serialize1")
 	reissue.m_iLat = 0x12345678;
 	reissue.m_iLong = 0x98765432;
 	char i = 0;
-	for (auto &c: reissue.m_oDateTime)
+	for (auto &c : reissue.m_oDateTime)
 	{
 		c = i++;
 	}
@@ -1443,35 +1446,47 @@ TEST_CASE("FORWARD")
 	test_template_construct();
 }
 
-
-//this goes in some header so you can use it everywhere
-template<typename T>
-struct TypeSink {
+// this goes in some header so you can use it everywhere
+template <typename T>
+struct TypeSink
+{
 	using Type = void;
 };
-template<typename T>
+template <typename T>
 using TypeSinkT = typename TypeSink<T>::Type;
 
-//use case
-template<typename T, typename = void>
-struct HasBarOfTypeInt : std::false_type {
-	static void display()	{	printf("HasBarOfTypeInt false\n");}
+// use case
+template <typename T, typename = void>
+struct HasBarOfTypeInt : std::false_type
+{
+	static void display() { printf("HasBarOfTypeInt false\n"); }
 };
 
-template<typename T>
-struct HasBarOfTypeInt<T, TypeSinkT<decltype(std::declval<T&>().*(&T::bar))>> :	std::is_same<typename std::decay<decltype(std::declval<T&>().*(&T::bar))>::type, int> {
-	static void display(){	printf("HasBarOfTypeInt value:%d\n", std::is_same<typename std::decay<decltype(std::declval<T&>().*(&T::bar))>::type, int>::value);	}
+template <typename T>
+struct HasBarOfTypeInt<T, TypeSinkT<decltype(std::declval<T &>().*(&T::bar))>> : std::is_same<typename std::decay<decltype(std::declval<T &>().*(&T::bar))>::type, int>
+{
+	static void display() { printf("HasBarOfTypeInt value:%d\n", std::is_same<typename std::decay<decltype(std::declval<T &>().*(&T::bar))>::type, int>::value); }
 };
 
-struct S {	int bar;};
-struct S1 {	char bar;};
-struct K {};
+struct S
+{
+	int bar;
+};
+struct S1
+{
+	char bar;
+};
+struct K
+{
+};
 
-template<typename T, typename = TypeSinkT<decltype(&T::bar)>>
-void print(T) {
+template <typename T, typename = TypeSinkT<decltype(&T::bar)>>
+void print(T)
+{
 	std::cout << "has bar" << std::endl;
 }
-void print(...) {
+void print(...)
+{
 	std::cout << "no bar" << std::endl;
 }
 TEST_CASE("SFINAE_CHECK")
@@ -1488,7 +1503,6 @@ TEST_CASE("SFINAE_CHECK")
 	printf("SFINAE_CHECK OK\n");
 }
 
-
 TEST_CASE("future")
 {
 
@@ -1500,7 +1514,7 @@ std::string
 type_name()
 {
 	typedef typename std::remove_reference<T>::type TR;
-	std::unique_ptr<char, void(*)(void*)> own(nullptr,std::free);
+	std::unique_ptr<char, void (*)(void *)> own(nullptr, std::free);
 	std::string r = own != nullptr ? own.get() : typeid(TR).name();
 	if (std::is_const<TR>::value)
 		r += " const";
@@ -1513,30 +1527,31 @@ type_name()
 	return r;
 }
 
-
 // overloads
 
 /* 测试std::move(将左值转化为右值) 和std::forwad */
 void overloaded(int &arg) { std::cout << "by lvalue\n"; }
 void overloaded(int const &arg) { std::cout << "by const lvalue\n"; }
-void overloaded(int && arg) { std::cout << "by rvalue\n"; }
+void overloaded(int &&arg) { std::cout << "by rvalue\n"; }
 
-template< typename t >
+template <typename t>
 /* "t &&" with "t" being template param is special, and  adjusts "t" to be
 (for example) "int &" or non-ref "int" so std::forward knows what to do. */
-void forwarding(t && arg) {
-	//type_name<decltype(declval<t>())>();
+void forwarding(t &&arg)
+{
+	// type_name<decltype(declval<t>())>();
 	type_name<decltype(arg)>();
 	std::cout << "via std::forward: ";
 	//转发需要在模板T&& 下使用，否则返回值是rvalue
-	overloaded(std::forward< t >(arg));
+	overloaded(std::forward<t>(arg));
 	std::cout << "via std::move: ";
 	overloaded(std::move(arg)); // conceptually this would invalidate arg
 	std::cout << "by simple passing: ";
 	overloaded(arg);
 }
 
-void _test_forward() {
+void _test_forward()
+{
 	std::cout << "111111111 passes rvalue:\n";
 	forwarding(5);
 	std::cout << "222222222 passes lvalue:\n";
@@ -1559,16 +1574,16 @@ void _test_forward() {
 TEST_CASE("Reference_collapsing")
 {
 	int i;
-	auto ret0 = std::is_same< int &, decltype(i) >::value;
-	//reference 
-	auto ret1 = std::is_same< int &, decltype((i)) >::value;
-	//xvalue
-	auto ret2 = std::is_same< int &&, decltype(std::move(i))>::value;
-	//if T is prvalue, decltype return T(纯右值直接返回本身类型)
-	auto ret3 = std::is_same< int &&, decltype(5)>::value;
-	auto ret3_0 = std::is_same< int, decltype(5)>::value;
-	//std::foward会将右值转化为左值
-	auto ret3_1 = std::is_same< int &&, decltype(std::forward<int>(5))>::value;
+	auto ret0 = std::is_same<int &, decltype(i)>::value;
+	// reference
+	auto ret1 = std::is_same<int &, decltype((i))>::value;
+	// xvalue
+	auto ret2 = std::is_same<int &&, decltype(std::move(i))>::value;
+	// if T is prvalue, decltype return T(纯右值直接返回本身类型)
+	auto ret3 = std::is_same<int &&, decltype(5)>::value;
+	auto ret3_0 = std::is_same<int, decltype(5)>::value;
+	// std::foward会将右值转化为左值
+	auto ret3_1 = std::is_same<int &&, decltype(std::forward<int>(5))>::value;
 	overloaded(i);
 	overloaded(std::forward<int>(i));
 	overloaded(std::forward<int>(5));
@@ -1578,36 +1593,35 @@ TEST_CASE("Reference_collapsing")
 	/*declval add_rvalue_reference(返回右值引用)
 		T   -> T&&
 		T&	-> T& &&, T&
-		T&& -> T&& &&,T&& 
+		T&& -> T&& &&,T&&
 	*/
-	auto ret4 = std::is_same< int &&, decltype(std::declval<int>())>::value;
-	auto ret5 = std::is_same< int &, decltype(std::declval<int&>())>::value;
-	auto ret6 = std::is_same< int &&, decltype(std::declval<int&&>())>::value;
+	auto ret4 = std::is_same<int &&, decltype(std::declval<int>())>::value;
+	auto ret5 = std::is_same<int &, decltype(std::declval<int &>())>::value;
+	auto ret6 = std::is_same<int &&, decltype(std::declval<int &&>())>::value;
 
 	std::cout << type_name<decltype(std::declval<int>())>() << '\n';
-	std::cout << type_name<decltype(std::declval<int&>())>() << '\n';
-	std::cout << type_name<decltype(std::declval<int&&>())>() << '\n';
+	std::cout << type_name<decltype(std::declval<int &>())>() << '\n';
+	std::cout << type_name<decltype(std::declval<int &&>())>() << '\n';
 	std::cout << type_name<decltype(5)>() << '\n';
 	std::cout << type_name<decltype(std::declval<decltype(5)>())>() << '\n';
 	std::cout << type_name<decltype(std::move<int>(5))>() << '\n';
-	std::cout << type_name<decltype(std::move<int&>(i))>() << '\n';
+	std::cout << type_name<decltype(std::move<int &>(i))>() << '\n';
 	std::cout << type_name<decltype(std::move(i))>() << '\n';
 	printf("Reference_collapsing OK\n");
 }
 
+template <typename... Args>
+void funA(std::tuple<Args...> &&args) {}
 
-template<typename ...Args>
-void funA(std::tuple<Args...> &&args){}
-
-template<typename T>
-void funB(T&& t)
+template <typename T>
+void funB(T &&t)
 {
 	/*!std::decay_t 将左值转化为原始类型,通过std::forward转发变成右值*/
 	funA(std::forward<std::decay_t<T>>(t));
 }
 
-template<typename T>
-void funC(T&& t)
+template <typename T>
+void funC(T &&t)
 {
 	/*!std::move 将左值转化为右值应用*/
 	funA(std::move<T>(t));
@@ -1629,17 +1643,13 @@ TEST_CASE("Decay")
 	funC(tup);
 
 	std::vector<int> bar;
-	for (int i = 0; i < 10; ++i) {
+	for (int i = 0; i < 10; ++i)
+	{
 		bar.push_back(i);
 	}
-	bar.reserve(20);   // this is the only difference with foo above
+	bar.reserve(20); // this is the only difference with foo above
 	std::cout << "making bar grow:\n";
-
 }
-
-
-
-
 
 /*//Some C standard library functions are not guaranteed to be reentrant with respect to threads.
 Functions such as strtok() and asctime() return a pointer to the result stored in function-allocated memory on a per-process basis.
@@ -1650,15 +1660,15 @@ such as abnormal termination, denial-of-service attack, and data integrity viola
 TEST_CASE("DATA_RACES")
 {
 	{
-		cout << "************ deferred use of a variable returned by localtime can cause abnormal behavior"<< endl;
-		time_t  t1 = time(nullptr);
+		cout << "************ deferred use of a variable returned by localtime can cause abnormal behavior" << endl;
+		time_t t1 = time(nullptr);
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 		time_t t2 = time(nullptr);
 		struct tm *t1_tm = localtime(&t1);
 		cout << "before t1 tm:" << asctime(t1_tm) << endl;
 
 		//因为localtime返回的结果是存储在其申请的内存上的，多次调用localtime会导致上次存储的数据被覆盖
-		struct tm* t2_tm = localtime(&t2);
+		struct tm *t2_tm = localtime(&t2);
 		cout << "after t1 tm:" << asctime(t1_tm) << endl;
 		cout << "after t2 tm:" << asctime(t2_tm) << endl;
 	}
@@ -1667,22 +1677,20 @@ TEST_CASE("DATA_RACES")
 		/*//Windows下，localtime此函数是线程安全的,这个函数都会为每一个线程分配一个单独的tm结构体。
 			POSIX下 就不是线程安全的。这个函数内部使用了一个静态tm结构体，每个访问它的函数都会修改这个值*/
 		cout << "************ Multiple threads invoking the same function can cause concurrency problems" << endl;
-		time_t  t1 = time(nullptr);
+		time_t t1 = time(nullptr);
 		struct tm *t1_tm = localtime(&t1);
 		cout << "before t1 tm:" << asctime(t1_tm) << endl;
 		std::this_thread::sleep_for(std::chrono::seconds(2));
-		std::thread thread_(std::bind([&t1_tm]() {
+		std::thread thread_(std::bind([&t1_tm]()
+									  {
 			time_t t2 = time(nullptr);
 			struct tm* t2_tm = localtime(&t2);
 			cout << "after t1 tm:" << asctime(t1_tm) << endl;
-			cout << "after t2 tm:" << asctime(t2_tm) << endl;
-		}));
+			cout << "after t2 tm:" << asctime(t2_tm) << endl; }));
 		thread_.join();
 		cout << "after2 t1 tm:" << asctime(t1_tm) << endl;
 	}
 }
-
-
 
 #if 0
 TEST_CASE("TEST 1")
